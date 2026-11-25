@@ -9,7 +9,10 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.gson.JsonParseException;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.RedstoneFrequency;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerWireless.WriteResult;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
@@ -24,6 +27,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -41,7 +45,9 @@ public final class ComputerBlockEntity extends BlockEntity {
 	private static final String KEY_RUNNING_PROGRAM = "RunningProgram";
 	private static final String KEY_INPUT_SLOTS = "InputSlots";
 	private static final String KEY_OUTPUT_LINES = "OutputLines";
+	private static final String KEY_OUTPUT_COMPONENTS = "OutputComponents";
 	private static final String KEY_WIRELESS = "WirelessChannels";
+	private static final String KEY_WIRELESS_TRANSMITTERS = "WirelessTransmitters";
 	private static final String KEY_LOGISTICS = "Logistics";
 	private static final String KEY_VILLAGER = "VillagerBox";
 	private static final String KEY_DISPLAY_PENDING = "DisplayPending";
@@ -56,7 +62,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 	private ItemStack villagerBox = ItemStack.EMPTY;
 	private ComputerLibrary villagerLibrary = ComputerLibrary.CORE;
 	private final String[] inputSlots = createEmptySlots();
-	private final List<String> outputLines = new ArrayList<>();
+	private final List<Component> outputLines = new ArrayList<>();
 	private boolean pendingAutoStart;
 	private final Set<BlockPos> pendingDisplayLinks = new HashSet<>();
 	private boolean displayDirty;
@@ -66,14 +72,16 @@ public final class ComputerBlockEntity extends BlockEntity {
 
 	private final ComputerIO io = new ComputerIO() {
 		@Override
-		public int readRedstone(Channel channel) {
-			return wireless.read(channel);
+		public int readRedstone(RedstoneFrequency frequency) {
+			return wireless.read(frequency);
 		}
 
 		@Override
-		public void writeRedstone(Channel channel, int power, int pulseTicks) {
-			if (wireless.write(channel, power, pulseTicks, currentGameTick()))
+		public boolean writeRedstone(RedstoneFrequency frequency, int power, int pulseTicks) {
+			WriteResult result = wireless.write(frequency, power, pulseTicks, currentGameTick());
+			if (result == WriteResult.CHANGED)
 				markIoChanged();
+			return result != WriteResult.FULL;
 		}
 
 		@Override
@@ -88,17 +96,16 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
-		public void setOutputLine(int lineIndex, String text) {
+		public void setOutputLine(int lineIndex, Component text) {
 			if (lineIndex < 0 || lineIndex >= ComputerIO.OUTPUT_LINES)
 				return;
-			String clamped = ComputerRuntime.clampValue(text);
 			boolean changed = false;
 			while (outputLines.size() <= lineIndex) {
-				outputLines.add("");
+				outputLines.add(CommonComponents.EMPTY);
 				changed = true;
 			}
-			if (!clamped.equals(outputLines.get(lineIndex))) {
-				outputLines.set(lineIndex, clamped);
+			if (!text.equals(outputLines.get(lineIndex))) {
+				outputLines.set(lineIndex, text);
 				changed = true;
 			}
 			if (changed)
@@ -106,11 +113,10 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
-		public void appendOutput(String text) {
-			String clamped = ComputerRuntime.clampValue(text);
+		public void appendOutput(Component text) {
 			if (outputLines.size() == ComputerIO.OUTPUT_LINES)
 				outputLines.removeFirst();
-			outputLines.add(clamped);
+			outputLines.add(text);
 			markOutputChanged();
 		}
 
@@ -180,7 +186,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		return runtime.snapshot(outputLines, wireless.snapshot(), Arrays.asList(inputSlots), logistics.isBound());
 	}
 
-	public List<String> outputLinesSnapshot() {
+	public List<Component> outputLinesSnapshot() {
 		return List.copyOf(outputLines);
 	}
 
@@ -415,6 +421,15 @@ public final class ComputerBlockEntity extends BlockEntity {
 		return raw.replace('\r', ' ').replace('\n', ' ').strip();
 	}
 
+	private static Component readOutputComponent(String json, HolderLookup.Provider registries) {
+		try {
+			Component component = Component.Serializer.fromJson(json, registries);
+			return component == null ? CommonComponents.EMPTY : component;
+		} catch (JsonParseException ignored) {
+			return CommonComponents.EMPTY;
+		}
+	}
+
 	@Override
 	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.saveAdditional(tag, registries);
@@ -430,11 +445,12 @@ public final class ComputerBlockEntity extends BlockEntity {
 		tag.put(KEY_INPUT_SLOTS, inputList);
 
 		ListTag outputList = new ListTag();
-		for (String line : outputLines)
-			outputList.add(StringTag.valueOf(line));
-		tag.put(KEY_OUTPUT_LINES, outputList);
+		for (Component line : outputLines)
+			outputList.add(StringTag.valueOf(Component.Serializer.toJson(line, registries)));
+		tag.put(KEY_OUTPUT_COMPONENTS, outputList);
 
 		tag.put(KEY_WIRELESS, wireless.save());
+		tag.put(KEY_WIRELESS_TRANSMITTERS, wireless.saveTransmitters());
 		tag.put(KEY_LOGISTICS, logistics.save());
 		if (!villagerBox.isEmpty())
 			tag.put(KEY_VILLAGER, villagerBox.save(registries));
@@ -466,13 +482,18 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		outputLines.clear();
-		if (tag.contains(KEY_OUTPUT_LINES, Tag.TAG_LIST)) {
+		if (tag.contains(KEY_OUTPUT_COMPONENTS, Tag.TAG_LIST)) {
+			ListTag outputList = tag.getList(KEY_OUTPUT_COMPONENTS, Tag.TAG_STRING);
+			for (int i = 0; i < Math.min(outputList.size(), ComputerIO.OUTPUT_LINES); i++)
+				outputLines.add(readOutputComponent(outputList.getString(i), registries));
+		} else if (tag.contains(KEY_OUTPUT_LINES, Tag.TAG_LIST)) {
 			ListTag outputList = tag.getList(KEY_OUTPUT_LINES, Tag.TAG_STRING);
 			for (int i = 0; i < Math.min(outputList.size(), ComputerIO.OUTPUT_LINES); i++)
-				outputLines.add(ComputerRuntime.clampValue(outputList.getString(i)));
+				outputLines.add(Component.literal(ComputerRuntime.clampValue(outputList.getString(i))));
 		}
 
-		wireless.load(tag.getList(KEY_WIRELESS, Tag.TAG_COMPOUND));
+		wireless.load(tag.getList(KEY_WIRELESS, Tag.TAG_COMPOUND),
+			tag.getList(KEY_WIRELESS_TRANSMITTERS, Tag.TAG_COMPOUND));
 		logistics.load(tag.getCompound(KEY_LOGISTICS));
 		takeVillagerBox();
 		setVillagerBox(ItemStack.parseOptional(registries, tag.getCompound(KEY_VILLAGER)));

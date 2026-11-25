@@ -107,10 +107,17 @@ public class SlimeCultureChamberBlock extends HorizontalDirectionalBlock impleme
 
 	private static VoxelShape[] makePartShapes() {
 		// Approximate the bevels with steps and keep collision within each occupied cell.
+		// The four joined pane walls follow the two-unit width of centred glass panes.
+		VoxelShape glassWalls = Shapes.or(
+			box(-9, 16, -9, 25, 54, -7), box(-9, 16, 23, 25, 54, 25),
+			box(-9, 16, -7, -7, 54, 23), box(23, 16, -7, 25, 54, 23));
+		VoxelShape windowPosts = Shapes.or(
+			box(-11, 16, -11, -6.5, 54, -6.5), box(22.5, 16, -11, 27, 54, -6.5),
+			box(-11, 16, 22.5, -6.5, 54, 27), box(22.5, 16, 22.5, 27, 54, 27));
 		VoxelShape outline = Shapes.or(
 			box(-16, 0, -12, 32, 7, 28), box(-12, 0, -16, 28, 7, 32),
 			box(-13, 6, -9, 29, 16, 25), box(-9, 6, -13, 25, 16, 29),
-			box(-10.5, 16, -10.5, 26.5, 54, 26.5),
+			glassWalls, windowPosts,
 			box(-13, 54, -9, 29, 62, 25), box(-9, 54, -13, 25, 62, 29),
 			box(-2, 62, -13, 18, 64, 29), box(-13, 62, -2, 29, 64, 18));
 		VoxelShape[] shapes = new VoxelShape[PART_COUNT];

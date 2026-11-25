@@ -15,6 +15,8 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Status;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Variable;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
@@ -94,15 +96,16 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			}
 
 			buffer.writeVarInt(snapshot.output().size());
-			for (String line : snapshot.output())
-				buffer.writeUtf(line, ComputerRuntime.MAX_VALUE_LENGTH);
+			for (Component line : snapshot.output())
+				ComponentSerialization.STREAM_CODEC.encode(buffer, line);
 
 			buffer.writeVarInt(snapshot.variables().size());
 			for (Variable variable : snapshot.variables()) {
 				buffer.writeUtf(variable.name(), ComputerRuntime.MAX_VALUE_LENGTH);
-				buffer.writeUtf(variable.value(), ComputerRuntime.MAX_VALUE_LENGTH);
+				ComponentSerialization.STREAM_CODEC.encode(buffer, variable.value());
 			}
 
+			buffer.writeVarInt(snapshot.channels().size());
 			for (ChannelState channel : snapshot.channels()) {
 				buffer.writeUtf(channel.first(), ComputerRuntime.MAX_VALUE_LENGTH);
 				buffer.writeUtf(channel.second(), ComputerRuntime.MAX_VALUE_LENGTH);
@@ -124,18 +127,19 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 				: null;
 
 			int lineCount = ComputerProgramWire.readCount(buffer, ComputerRuntime.MAX_OUTPUT_LINES);
-			List<String> lines = new ArrayList<>(lineCount);
+			List<Component> lines = new ArrayList<>(lineCount);
 			for (int i = 0; i < lineCount; i++)
-				lines.add(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH));
+				lines.add(ComponentSerialization.STREAM_CODEC.decode(buffer));
 
 			int variableCount = ComputerProgramWire.readCount(buffer, ComputerRuntime.MAX_VARIABLES);
 			List<Variable> variables = new ArrayList<>(variableCount);
 			for (int i = 0; i < variableCount; i++)
 				variables.add(new Variable(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH),
-					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH)));
+					ComponentSerialization.STREAM_CODEC.decode(buffer)));
 
-			List<ChannelState> channels = new ArrayList<>(Channel.VALUES.length);
-			for (Channel channel : Channel.VALUES)
+			int channelCount = ComputerProgramWire.readCount(buffer, Channel.VALUES.length + ComputerIO.MAX_WIRELESS_TRANSMITTERS);
+			List<ChannelState> channels = new ArrayList<>(channelCount);
+			for (int i = 0; i < channelCount; i++)
 				channels.add(new ChannelState(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH),
 					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH), Math.clamp(buffer.readByte(), 0, 15),
 					Math.clamp(buffer.readByte(), 0, 15)));

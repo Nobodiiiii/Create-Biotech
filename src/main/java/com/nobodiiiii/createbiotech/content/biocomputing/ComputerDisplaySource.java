@@ -8,6 +8,7 @@ import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.level.block.state.BlockState;
@@ -25,9 +26,9 @@ public final class ComputerDisplaySource extends DisplaySource {
 		if (!(context.level().getBlockEntity(anchor) instanceof ComputerBlockEntity computer))
 			return EMPTY;
 
-		List<String> lines = computer.outputLinesSnapshot();
+		List<Component> lines = computer.outputLinesSnapshot();
 		int lastNonEmpty = lines.size() - 1;
-		while (lastNonEmpty >= 0 && lines.get(lastNonEmpty).isEmpty())
+		while (lastNonEmpty >= 0 && CommonComponents.EMPTY.equals(lines.get(lastNonEmpty)))
 			lastNonEmpty--;
 		if (lastNonEmpty < 0)
 			return EMPTY;
@@ -35,7 +36,7 @@ public final class ComputerDisplaySource extends DisplaySource {
 		int limit = Math.min(lastNonEmpty + 1, Math.max(1, stats.maxRows()));
 		List<MutableComponent> components = new ArrayList<>(limit);
 		for (int i = 0; i < limit; i++)
-			components.add(Component.literal(lines.get(i)));
+			components.add(lines.get(i).copy());
 		return components;
 	}
 

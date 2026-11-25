@@ -23,7 +23,7 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 public final class ComputerProgramJson {
 	private static final String FORMAT_ID = "create_biotech.scratch";
 	// Includes explicit type keys and worst-case escaping for all literal slots.
-	private static final int MAX_JSON_LENGTH = 768 * 1024;
+	private static final int MAX_JSON_LENGTH = 2 * 1024 * 1024;
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	private ComputerProgramJson() {}

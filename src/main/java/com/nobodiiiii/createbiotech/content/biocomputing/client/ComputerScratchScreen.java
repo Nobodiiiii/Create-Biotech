@@ -8,10 +8,10 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerItemReference;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerLibrary;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram;
@@ -276,7 +276,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			}
 		}
 		for (Op op : Op.values()) {
-			if (op.category() != category || !library.allows(op))
+			boolean inCategory = op.category() == category || (category == Category.DATA && op == Op.VARIABLE);
+			if (!inCategory || !library.allows(op) || op.isLegacyFrequencyBinding())
 				continue;
 			PaletteEntry entry = paletteEntry(Tile.create(op), text("palette." + op.key()), false, y);
 			entries.add(entry);
@@ -566,7 +567,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 					if (entry.template() instanceof Block block && block.op().category() != Category.DATA) {
 						Op op = block.op();
 						tooltip.append(" · ").append(libraryLabel(op.library()));
-						if (op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY)
+						if (op.hasFrequencyInput())
 							tooltip.append("\n").append(text("frequency_help"));
 						if (op == Op.STOCK_COUNT || op == Op.HAS_STOCK)
 							tooltip.append("\n").append(text("stock_list_help"));
@@ -606,6 +607,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 				Rect bounds = spot.bounds();
 				graphics.renderOutline(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0xffa8dcff);
 			}
+			for (Drop name : layout.nameFields())
+				name.highlight(graphics);
 		}
 		graphics.pose().popPose();
 		graphics.disableScissor();
@@ -614,16 +617,24 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			if (itemSpot != null) {
 				Component help = text("item_input_help");
 				String item = itemSpot.item().text;
-				setTooltipForNextRenderPass(item.isEmpty() ? help : Component.literal(item).append("\n").append(help));
+				if (item.isEmpty()) {
+					setTooltipForNextRenderPass(help);
+				} else {
+					MutableComponent tooltip = ComputerItemReference.displayName(item).copy();
+					if (!item.equals(tooltip.getString()))
+						tooltip.append("\n").append(item);
+					setTooltipForNextRenderPass(tooltip.append("\n").append(help));
+				}
 			} else if (input == null) {
 				double x = worldX(mouseX);
 				double y = worldY(mouseY);
 				Placed placed = layout.blockAt(x, y);
 				ListControl control = layout.listControlAt(placed, x, y);
+				Drop empty = layout.emptyAt(placed, x, y);
 				if (control != null) {
 					setTooltipForNextRenderPass(text(control.row() < 0 ? "add_list_entry" : "remove_list_entry"));
-				} else if (layout.emptyAt(placed, x, y) != null) {
-					setTooltipForNextRenderPass(text("empty_input"));
+				} else if (empty != null) {
+					setTooltipForNextRenderPass(text(empty.nameSlot() == null ? "empty_input" : "fixed_name_help"));
 				} else if (placed != null && placed.element() instanceof Datum datum) {
 					setTooltipForNextRenderPass(text("data." + datum.type.key()).append("\n").append(text("edit_data_help")));
 				} else if (placed != null && placed.element().isData()) {
@@ -691,7 +702,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		}
 		int rowHeight = font.lineHeight + 2;
 		int startY = consoleArea.y() + 25;
-		List<String> lines = consoleLines();
+		List<Component> lines = consoleLines();
 		if (lines.isEmpty()) {
 			String emptyKey = consoleMode == ConsoleMode.VARIABLES ? "no_variables" : "no_output";
 			graphics.drawString(font, text(emptyKey), consoleArea.x() + 7, startY, 0xff879ba9, false);
@@ -701,12 +712,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		consoleScroll = Math.min(maxScroll, consoleScroll);
 		int from = consoleMode == ConsoleMode.OUTPUT ? maxScroll - consoleScroll : consoleScroll;
 		for (int i = from; i < Math.min(lines.size(), from + visibleLines()); i++) {
-			String fullLine = lines.get(i);
+			Component line = lines.get(i);
+			String fullLine = line.getString();
 			Rect row = new Rect(consoleArea.x() + 7, startY + (i - from) * rowHeight, consoleArea.width() - 17, rowHeight);
 			String shown = canvas.shorten(fullLine, row.width());
 			graphics.drawString(font, shown, row.x(), row.y(), 0xfff1f5f8, false);
 			if (drag == null && !shown.equals(fullLine) && row.contains(mouseX, mouseY))
-				setTooltipForNextRenderPass(Component.literal(fullLine));
+				setTooltipForNextRenderPass(line);
 		}
 		drawScrollbar(graphics, consoleArea.right() - 4, startY, visibleLines() * rowHeight, lines.size() * rowHeight,
 			from * rowHeight);
@@ -742,44 +754,45 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		return -1;
 	}
 
-	private List<String> consoleLines() {
+	private List<Component> consoleLines() {
 		Snapshot snapshot = menu.snapshot();
 		return switch (consoleMode) {
 			case OUTPUT -> {
-				List<String> raw = snapshot.output();
-				List<String> numbered = new ArrayList<>(raw.size());
+				List<Component> raw = snapshot.output();
+				List<Component> numbered = new ArrayList<>(raw.size());
 				for (int i = 0; i < raw.size(); i++)
-					numbered.add((i + 1) + ": " + raw.get(i));
+					numbered.add(Component.literal((i + 1) + ": ").append(raw.get(i)));
 				yield numbered;
 			}
 			case VARIABLES -> snapshot.variables().stream()
-				.map(variable -> variable.name() + " = " + variable.value()).toList();
+				.<Component>map(variable -> Component.literal(variable.name() + " = ").append(variable.value())).toList();
 			case IO -> formatIoLines(snapshot);
 			case INVENTORY -> List.of();
 		};
 	}
 
-	private List<String> formatIoLines(Snapshot snapshot) {
-		List<String> lines = new ArrayList<>(2 + Channel.VALUES.length + ComputerIO.INPUT_SLOTS);
-		lines.add(text("io.library", libraryLabel(library)).getString());
-		for (Channel channel : Channel.VALUES) {
-			ChannelState state = snapshot.channels().get(channel.ordinal());
-			lines.add(state.isBound()
-				? text("io.channel", channel.key(), emptyPlaceholder(state.first()), emptyPlaceholder(state.second()),
-					state.input(), state.output()).getString()
-				: text("io.channel_unbound", channel.key()).getString());
-		}
+	private List<Component> formatIoLines(Snapshot snapshot) {
+		List<Component> lines = new ArrayList<>(2 + snapshot.channels().size() + ComputerIO.INPUT_SLOTS);
+		lines.add(text("io.library", libraryLabel(library)));
+		if (snapshot.channels().isEmpty())
+			lines.add(text("io.channel_unbound"));
+		for (ChannelState state : snapshot.channels())
+			lines.add(text("io.channel", frequencyName(state.first()), frequencyName(state.second()), state.input(), state.output()));
 		if (library.includesLogistics() || snapshot.stockLinkBound())
-			lines.add(text(snapshot.stockLinkBound() ? "io.stock_bound" : "io.stock_unbound").getString());
+			lines.add(text(snapshot.stockLinkBound() ? "io.stock_bound" : "io.stock_unbound"));
 		List<String> slots = snapshot.inputSlots();
 		for (int i = 0; i < ComputerIO.INPUT_SLOTS; i++) {
-			lines.add(text("io.input_slot", i + 1, emptyPlaceholder(slots.get(i))).getString());
+			lines.add(text("io.input_slot", i + 1, emptyPlaceholder(slots.get(i))));
 		}
 		return lines;
 	}
 
 	private static String emptyPlaceholder(String value) {
 		return value.isEmpty() ? "—" : value;
+	}
+
+	private static Component frequencyName(String reference) {
+		return reference.isEmpty() ? Component.literal("—") : ComputerItemReference.displayName(reference);
 	}
 
 	private int visibleLines() { return Math.max(1, (consoleArea.height() - 26) / (font.lineHeight + 2)); }
@@ -812,7 +825,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		if (input != null) {
 			if (input.isMouseOver(mouseX, mouseY))
 				return super.mouseClicked(mouseX, mouseY, button);
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && editingSpot.item() != null
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && (editingSpot.item() != null || editingSpot.nameSlot() != null)
 				&& consoleTabs[ConsoleMode.INVENTORY.ordinal()].isMouseOver(mouseX, mouseY)) {
 				selectConsole(ConsoleMode.INVENTORY);
 				return true;
@@ -847,8 +860,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		Drop empty = layout.emptyAt(picked, x, y);
 		if (empty != null) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && empty.location() instanceof InputPoint point) {
-				DataType type = point.field().slot.dataType() == DataType.VARIABLE_NAME ? DataType.VARIABLE_NAME : DataType.TEXT;
-				Datum datum = new Datum(type, "");
+				Datum datum = new Datum(DataType.TEXT, "");
 				edit(new Placed(empty.area(), datum, point, false), datum);
 			}
 			return true;
@@ -885,12 +897,21 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			InventoryPick pick = inventoryPick;
 			inventoryPick = null;
 			Placed spot = null;
-			if (inventoryIndexAt(mouseX, mouseY) == pick.index() && editingSpot != null && editingSpot.item() != null)
-				spot = editingSpot;
-			else if (canvasArea.contains(mouseX, mouseY))
-				spot = itemSpotAt(canvas.layout(draft), mouseX, mouseY);
-			if (spot != null)
-				setItem(spot, pick.stack());
+			InputPoint name = null;
+			if (editingSpot != null && (inventoryIndexAt(mouseX, mouseY) == pick.index() || input.isMouseOver(mouseX, mouseY))) {
+				if (editingSpot.item() != null)
+					spot = editingSpot;
+				else
+					name = editingSpot.nameSlot();
+			} else if (canvasArea.contains(mouseX, mouseY)) {
+				ScratchCanvas.Layout layout = canvas.layout(draft);
+				Drop target = layout.nameAt(worldX(mouseX), worldY(mouseY));
+				if (target != null)
+					name = target.nameSlot();
+				else
+					spot = itemSpotAt(layout, mouseX, mouseY);
+			}
+			setItem(spot, name, pick.stack());
 			return true;
 		}
 		if (panButton == button) {
@@ -971,7 +992,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return new ItemDropTarget(new Rect2i(area.x(), area.y(), area.width(), area.height()), stack -> {
 				// JEI keeps the original targets for the duration of a drag.
 				if (visibleItemTargets().contains(target))
-					setItem(target.spot(), stack);
+					setItem(target.spot(), target.name(), stack);
 			});
 		}).toList();
 	}
@@ -981,14 +1002,25 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return List.of();
 		List<ItemTarget> targets = new ArrayList<>();
 		Rect editArea = input == null ? null : new Rect(input.getX(), input.getY(), input.getWidth(), input.getHeight());
+		InputPoint editingName = editingSpot == null ? null : editingSpot.nameSlot();
 		if (editArea != null && editingSpot.item() != null)
-			targets.add(new ItemTarget(editArea, editingSpot));
-		for (Placed spot : canvas.layout(draft).items()) {
+			targets.add(new ItemTarget(editArea, editingSpot, null));
+		else if (editArea != null && editingName != null)
+			targets.add(new ItemTarget(editArea, null, editingName));
+		ScratchCanvas.Layout layout = canvas.layout(draft);
+		for (Placed spot : layout.items()) {
 			if (editingSpot != null && spot.element() == editingSpot.element())
 				continue;
 			Rect area = visibleScreenArea(spot.bounds());
 			if (area != null && (editArea == null || !editArea.intersects(area)))
-				targets.add(new ItemTarget(area, spot));
+				targets.add(new ItemTarget(area, spot, null));
+		}
+		for (Drop name : layout.nameFields()) {
+			if (name.location().equals(editingName))
+				continue;
+			Rect area = visibleScreenArea(name.area());
+			if (area != null && (editArea == null || !editArea.intersects(area)))
+				targets.add(new ItemTarget(area, null, name.nameSlot()));
 		}
 		return targets;
 	}
@@ -1001,15 +1033,22 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		return right > x && bottom > y ? new Rect(x, y, right - x, bottom - y) : null;
 	}
 
-	private void setItem(Placed spot, ItemStack stack) {
-		if (stack.isEmpty())
+	private void setItem(@Nullable Placed spot, @Nullable InputPoint name, ItemStack stack) {
+		if (stack.isEmpty() || (spot == null && name == null))
 			return;
-		String value = ComputerItemReference.write(stack, spot.includeItemColor());
+		String value = ComputerItemReference.write(stack, spot != null && spot.includeItemColor());
 		if (value.length() > DataType.ITEM.maxLength()) {
 			flashStatus(text("item_input_too_long"), 0xffff8983);
 			return;
 		}
-		if (editingSpot != null && editingSpot.element() == spot.element()) {
+		if (name != null) {
+			Datum item = new Datum(DataType.ITEM, value);
+			if (draft.canDrop(item, null, name)) {
+				if (input != null)
+					finishInput();
+				draft.drop(item, null, name);
+			}
+		} else if (editingSpot != null && editingSpot.element() == spot.element()) {
 			input.setValue(value);
 			finishInput();
 		} else {
@@ -1119,6 +1158,6 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		void track(double x, double y) { moved |= Math.abs(x - startX) >= 4 || Math.abs(y - startY) >= 4; }
 	}
 	private record InventoryPick(int index, ItemStack stack) {}
-	private record ItemTarget(Rect area, Placed spot) {}
+	private record ItemTarget(Rect area, @Nullable Placed spot, @Nullable InputPoint name) {}
 	public record ItemDropTarget(Rect2i area, Consumer<ItemStack> accept) {}
 }

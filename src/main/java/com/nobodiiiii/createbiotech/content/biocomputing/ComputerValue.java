@@ -9,6 +9,8 @@ import java.util.regex.Pattern;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
 
+import net.minecraft.network.chat.MutableComponent;
+
 /** Immutable values shared by variables and collection entries during execution. */
 sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListValue, ComputerValue.MapValue, ComputerValue.Missing {
 
@@ -20,7 +22,7 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 		@Override public Bounds bounds() { return Scalar.BOUNDS; }
 	}
 
-	record Scalar(String text, DataType type) implements ComputerValue {
+	record Scalar(String text, DataType type, List<ComputerText.Part> displayParts) implements ComputerValue {
 		private static final Bounds BOUNDS = new Bounds(1, 0);
 		private static final Pattern NUMERAL = Pattern.compile(
 			"([+-]?(?:(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?)"
@@ -30,8 +32,13 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 			this(text, DataType.TEXT);
 		}
 
+		Scalar(String text, DataType type) {
+			this(text, type, List.of());
+		}
+
 		public Scalar {
 			text = ComputerRuntime.clampValue(text);
+			displayParts = List.copyOf(displayParts);
 		}
 
 		@Override public Bounds bounds() { return BOUNDS; }
@@ -51,10 +58,13 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 		}
 	}
 
-	record MapValue(Map<String, ComputerValue> entries, Bounds bounds) implements ComputerValue {
-		MapValue(Map<String, ComputerValue> entries) {
-			this(Collections.unmodifiableMap(new LinkedHashMap<>(entries)), measure(entries.values()));
+	record MapValue(Map<String, Entry> entries, Bounds bounds) implements ComputerValue {
+		MapValue(Map<String, Entry> entries) {
+			this(Collections.unmodifiableMap(new LinkedHashMap<>(entries)),
+				measure(entries.values().stream().map(Entry::value).toList()));
 		}
+
+		record Entry(Scalar key, ComputerValue value) {}
 	}
 
 	default double tryNumber(boolean allowUnit) {
@@ -86,31 +96,30 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 		return switch (this) {
 			case Scalar scalar -> List.of(scalar);
 			case ListValue list -> list.entries;
-			case MapValue map -> map.entries.entrySet().stream()
-				.<ComputerValue>map(entry -> new ListValue(List.of(new Scalar(entry.getKey()), entry.getValue())))
+			case MapValue map -> map.entries.values().stream()
+				.<ComputerValue>map(entry -> new ListValue(List.of(entry.key(), entry.value())))
 				.toList();
 			case Missing ignored -> List.of();
 		};
 	}
 
-	default Map<String, ComputerValue> asMap() {
+	default Map<String, MapValue.Entry> asMap() {
 		if (this instanceof MapValue map)
 			return map.entries;
 		if (!(this instanceof ListValue list))
 			return Map.of();
-		Map<String, ComputerValue> entries = new LinkedHashMap<>();
+		Map<String, MapValue.Entry> entries = new LinkedHashMap<>();
 		for (ComputerValue entry : list.entries) {
 			if (!(entry instanceof ListValue pair) || pair.entries.size() != 2)
 				return Map.of();
-			entries.put(pair.entries.getFirst().asText(), pair.entries.getLast());
+			Scalar key = pair.entries.getFirst().asScalar();
+			entries.put(key.text(), new MapValue.Entry(key, pair.entries.getLast()));
 		}
 		return entries;
 	}
 
 	default boolean equivalent(ComputerValue other) {
 		if (this instanceof Scalar first && other instanceof Scalar second) {
-			if (first.type == DataType.VARIABLE_NAME || second.type == DataType.VARIABLE_NAME)
-				return first.type == second.type && first.text.strip().equals(second.text.strip());
 			double a = first.tryNumber(true);
 			double b = second.tryNumber(true);
 			return Double.isFinite(a) && Double.isFinite(b) ? a == b : first.text.equalsIgnoreCase(second.text);
@@ -125,7 +134,8 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 		}
 		if (this instanceof MapValue first && other instanceof MapValue second)
 			return first.entries.keySet().equals(second.entries.keySet())
-				&& first.entries.entrySet().stream().allMatch(entry -> entry.getValue().equivalent(second.entries.get(entry.getKey())));
+				&& first.entries.entrySet().stream().allMatch(entry ->
+					entry.getValue().value().equivalent(second.entries.get(entry.getKey()).value()));
 		return this == other;
 	}
 
@@ -134,38 +144,137 @@ sealed interface ComputerValue permits ComputerValue.Scalar, ComputerValue.ListV
 			return scalar.text;
 		if (this == Missing.INSTANCE)
 			return "";
-		StringBuilder text = new StringBuilder();
-		append(this, text);
-		return ComputerRuntime.clampValue(text.toString());
+		ComputerText text = new ComputerText(false);
+		appendText(text);
+		return text.text();
 	}
 
-	private static void append(ComputerValue value, StringBuilder text) {
-		switch (value) {
+	default Scalar asScalar() {
+		if (this instanceof Scalar scalar)
+			return scalar;
+		ComputerText text = new ComputerText(true);
+		appendText(text);
+		return text.scalar();
+	}
+
+	default Scalar toText() {
+		if (this instanceof Scalar scalar)
+			return scalar.type() == DataType.TEXT ? scalar : new Scalar(scalar.text());
+		ComputerText text = new ComputerText(true);
+		appendText(text, CollectionFormat.COMPACT);
+		return text.scalar();
+	}
+
+	default MutableComponent asDisplay() {
+		return asDisplay(CollectionFormat.STRUCTURED);
+	}
+
+	default MutableComponent asDisplayLine() {
+		return asDisplay(CollectionFormat.INLINE);
+	}
+
+	default List<MutableComponent> asDisplayLines(int maxLines, boolean quantityFirst) {
+		return switch (this) {
+			case ListValue list -> list.entries.stream()
+				.skip(Math.max(0, list.entries.size() - maxLines))
+				.map(ComputerValue::asDisplay)
+				.toList();
+			case MapValue map -> map.entries.values().stream()
+				.skip(Math.max(0, map.entries.size() - maxLines))
+				.map(entry -> displayEntry(entry, quantityFirst))
+				.toList();
+			default -> List.of(asDisplay());
+		};
+	}
+
+	private static MutableComponent displayEntry(MapValue.Entry entry, boolean quantityFirst) {
+		ComputerText text = new ComputerText(true);
+		if (quantityFirst) {
+			entry.value().appendText(text);
+			text.append(" ");
+			text.append(entry.key());
+		} else {
+			appendEntry(text, entry, CollectionFormat.INLINE);
+		}
+		return text.component();
+	}
+
+	private MutableComponent asDisplay(CollectionFormat format) {
+		ComputerText text = new ComputerText(true);
+		appendText(text, format);
+		return text.component();
+	}
+
+	static Scalar join(List<ComputerValue> values, ComputerValue separator) {
+		ComputerText text = new ComputerText(true);
+		for (int i = 0; i < values.size() && !text.isFull(); i++) {
+			if (i > 0)
+				separator.appendText(text);
+			values.get(i).appendText(text);
+		}
+		return text.scalar();
+	}
+
+	private void appendText(ComputerText text) {
+		appendText(text, CollectionFormat.STRUCTURED);
+	}
+
+	private void appendText(ComputerText text, CollectionFormat format) {
+		switch (this) {
 			case Missing ignored -> {}
-			case Scalar scalar -> text.append(scalar.text);
+			case Scalar scalar -> text.append(scalar);
 			case ListValue list -> {
-				text.append('[');
-				for (int i = 0; i < list.entries.size() && text.length() < ComputerRuntime.MAX_VALUE_LENGTH; i++) {
+				if (format.brackets)
+					text.append("[");
+				for (int i = 0; i < list.entries.size() && !text.isFull(); i++) {
 					if (i > 0)
-						text.append(", ");
-					append(list.entries.get(i), text);
+						text.append(format.separator);
+					list.entries.get(i).appendText(text, format.nested());
 				}
-				text.append(']');
+				if (format.brackets)
+					text.append("]");
 			}
 			case MapValue map -> {
-				text.append('{');
+				if (format.brackets)
+					text.append("{");
 				boolean first = true;
-				for (Map.Entry<String, ComputerValue> entry : map.entries.entrySet()) {
-					if (text.length() >= ComputerRuntime.MAX_VALUE_LENGTH)
+				for (MapValue.Entry entry : map.entries.values()) {
+					if (text.isFull())
 						break;
 					if (!first)
-						text.append(", ");
-					text.append(entry.getKey()).append('=');
-					append(entry.getValue(), text);
+						text.append(format.separator);
+					appendEntry(text, entry, format);
 					first = false;
 				}
-				text.append('}');
+				if (format.brackets)
+					text.append("}");
 			}
+		}
+	}
+
+	private static void appendEntry(ComputerText text, MapValue.Entry entry, CollectionFormat format) {
+		text.append(entry.key());
+		text.append(format.keyValueSeparator);
+		entry.value().appendText(text, format.nested());
+	}
+
+	enum CollectionFormat {
+		STRUCTURED(", ", "=", true),
+		COMPACT(",", "=", true),
+		INLINE(" ", "→", false);
+
+		private final String separator;
+		private final String keyValueSeparator;
+		private final boolean brackets;
+
+		CollectionFormat(String separator, String keyValueSeparator, boolean brackets) {
+			this.separator = separator;
+			this.keyValueSeparator = keyValueSeparator;
+			this.brackets = brackets;
+		}
+
+		private CollectionFormat nested() {
+			return this == INLINE ? STRUCTURED : this;
 		}
 	}
 

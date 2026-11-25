@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Category;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
@@ -244,7 +245,7 @@ final class ScratchDraft {
 				if (structure == null) {
 					tile.fields.add(Field.withDefault(slot));
 				} else {
-					int rows = op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY ? 2 : 1;
+					int rows = op.isLegacyFrequencyBinding() ? 2 : 1;
 					tile.fields.add(new Field(slot, create(structure, structure.slots().size() * rows)));
 				}
 			}
@@ -275,7 +276,7 @@ final class ScratchDraft {
 
 		@Override public int depth() { return 1 + children().mapToInt(Element::depth).max().orElse(0); }
 		@Override public int count() { return 1 + children().mapToInt(Element::count).sum(); }
-		@Override public boolean isData() { return op.isCollection(); }
+		@Override public boolean isData() { return op.category() == Category.DATA || op == Op.VARIABLE; }
 
 		private Stream<Element> children() {
 			return Stream.concat(fields.stream().map(field -> field.value).filter(Objects::nonNull),
@@ -293,7 +294,7 @@ final class ScratchDraft {
 		}
 
 		static Field withDefault(Slot slot) {
-			return new Field(slot, new Datum(slot.dataType(), slot.initial()));
+			return new Field(slot, slot.isFixedName() ? null : new Datum(slot.dataType(), slot.initial()));
 		}
 
 		Input snapshot() { return value == null ? EmptyInput.INSTANCE : value.snapshot(); }
@@ -314,9 +315,11 @@ final class ScratchDraft {
 	}
 
 	record InputPoint(Tile owner, Field field, int depth) implements Location {
+		boolean isFixedName() { return field.slot.isFixedName(); }
+
 		@Override
 		public boolean accepts(Element element) {
-			return !(element instanceof Tile tile) || tile.op.shape() != Shape.COMMAND;
+			return element instanceof Datum || (element instanceof Tile tile && !isFixedName() && tile.op.shape() != Shape.COMMAND);
 		}
 
 		@Override public void insert(Element element) { field.value = element; }

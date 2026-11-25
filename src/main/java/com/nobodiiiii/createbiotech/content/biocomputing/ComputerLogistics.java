@@ -139,7 +139,7 @@ final class ComputerLogistics {
 
 	@Nullable
 	private static Item item(String text) {
-		ResourceLocation id = ResourceLocation.tryParse(text.strip());
+		ResourceLocation id = ComputerItemReference.parseId(text);
 		return id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
 	}
 

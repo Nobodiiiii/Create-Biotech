@@ -3,7 +3,6 @@
 import base64
 import json
 import math
-from collections import defaultdict
 from itertools import product
 from pathlib import Path
 
@@ -18,16 +17,7 @@ TEXTURE_DIR = ASSETS / "textures/block" / NAME
 ATLAS = "atlas.png"
 ATLAS_SIZE = (256, 128)
 PARTICLE = "create:block/zinc_block"
-LAYERS = {"frame": "minecraft:cutout", "interior": "minecraft:translucent"}
 EPSILON = 1e-7
-
-# Atlas regions in pixels, with the render layer and whether to draw both sides.
-SURFACES = (
-    ((0, 0, 192, 128), "frame", False),
-    ((192, 0, 256, 48), "frame", True),
-    ((192, 48, 256, 68), "interior", False),
-    ((192, 68, 256, 128), "interior", True),
-)
 
 # Counterclockwise corner order, starting at the top-left corner of each UV rectangle.
 FACE_CORNERS = {
@@ -39,27 +29,18 @@ FACE_CORNERS = {
     "down": ((0, 0, 1), (0, 0, 0), (1, 0, 0), (1, 0, 1)),
 }
 FACE_PLANES = {
-    "north": (2, 0, "south"),
-    "east": (0, 1, "west"),
-    "south": (2, 1, "north"),
-    "west": (0, 0, "east"),
-    "up": (1, 1, "down"),
-    "down": (1, 0, "up"),
+    "north": (2, 0),
+    "east": (0, 1),
+    "south": (2, 1),
+    "west": (0, 0),
+    "up": (1, 1),
+    "down": (1, 0),
 }
 Y_TURN_FACES = ("north", "west", "south", "east")
 
 
 def face_vertices(bounds, direction):
     return [tuple(bounds[end][axis] for axis, end in enumerate(corner)) for corner in FACE_CORNERS[direction]]
-
-
-def atlas_surface(uv, name):
-    u0, u1 = sorted(uv[::2])
-    v0, v1 = sorted(uv[1::2])
-    for (left, top, right, bottom), layer, double_sided in SURFACES:
-        if left <= u0 < u1 <= right and top <= v0 < v1 <= bottom:
-            return layer, double_sided
-    raise ValueError(f"UVs cross atlas material bounds for {name}")
 
 
 def prepare_cube(cube):
@@ -89,6 +70,9 @@ def prepare_cube(cube):
         if face["texture"] != 0:
             raise ValueError(f"Expected atlas UVs for {cube['name']} {direction}")
         u0, v0, u1, v1 = face["uv"]
+        width, height = ATLAS_SIZE
+        if not (0 <= min(u0, u1) < max(u0, u1) <= width and 0 <= min(v0, v1) < max(v0, v1) <= height):
+            raise ValueError(f"UVs exceed atlas bounds for {cube['name']} {direction}")
         uv = [(u0, v0), (u0, v1), (u1, v1), (u1, v0)]
         shift = face.get("rotation", 0) // 90
         uv = uv[shift:] + uv[:shift]
@@ -96,8 +80,7 @@ def prepare_cube(cube):
         rotated = direction
         if direction in Y_TURN_FACES:
             rotated = Y_TURN_FACES[(Y_TURN_FACES.index(direction) + turns) % 4]
-        layer, double_sided = atlas_surface(face["uv"], f"{cube['name']} {direction}")
-        faces[rotated] = ([by_position[v] for v in face_vertices(normalized, rotated)], layer, double_sided)
+        faces[rotated] = [by_position[v] for v in face_vertices(normalized, rotated)]
     return normalized, angle, faces
 
 
@@ -111,14 +94,21 @@ def split_cube(bounds, origin, angle, cells, name):
                      for x, z in product(local_x, local_z)]
         xs, zs = zip(*footprint)
         world_bounds = ((min(xs), bounds[0][1], min(zs)), (max(xs), bounds[1][1], max(zs)))
+    chamber_maximum = (24, 64, 24)
     if any(lo < start - EPSILON or hi > end + EPSILON
-           for lo, hi, start, end in zip(*world_bounds, (-24, 0, -24), (24, 64, 24))):
+           for lo, hi, start, end in zip(*world_bounds, (-24, 0, -24), chamber_maximum)):
         raise ValueError(f"Cube crosses the 3×4×3 export bounds: {name}")
 
+    flat_axes = {axis for axis, (lo, hi) in enumerate(zip(*world_bounds)) if lo == hi}
     for part, minimum in enumerate(cells):
+        maximum = tuple(start + 16 for start in minimum)
         lower = tuple(max(lo, start) for lo, start in zip(world_bounds[0], minimum))
-        upper = tuple(min(hi, start + 16) for hi, start in zip(world_bounds[1], minimum))
-        if any(hi - lo <= EPSILON for lo, hi in zip(lower, upper)):
+        upper = tuple(min(hi, end) for hi, end in zip(world_bounds[1], maximum))
+        if any(hi - lo <= EPSILON for axis, (lo, hi) in enumerate(zip(lower, upper)) if axis not in flat_axes):
+            continue
+        # A plane on a shared cell boundary belongs to the cell on its positive side.
+        if any(lower[axis] != upper[axis] or upper[axis] == maximum[axis] < chamber_maximum[axis]
+               for axis in flat_axes):
             continue
         if angle:
             if any(abs(clipped[axis] - full[axis]) > EPSILON
@@ -158,45 +148,30 @@ def make_face(uv):
     return face
 
 
-def add_piece(groups, faces, bounds, piece, origin, angle, offset, scale=1):
+def add_piece(elements, faces, bounds, piece, origin, angle, offset, scale=1):
     def to_model(point):
         return [value * scale + shift for value, shift in zip(point, offset)]
 
-    def element(box, box_faces):
-        result = {"from": to_model(box[0]), "to": to_model(box[1]), "faces": box_faces}
+    box_faces = {}
+    for direction, uv in faces.items():
+        axis, side = FACE_PLANES[direction]
+        if piece[side][axis] == bounds[side][axis]:
+            box_faces[direction] = make_face(clipped_uv(bounds, piece, direction, uv))
+    if box_faces:
+        element = {"from": to_model(piece[0]), "to": to_model(piece[1]), "faces": box_faces}
         if angle:
-            result["rotation"] = {"angle": angle, "axis": "y", "origin": to_model(origin)}
-        return result
-
-    single_sided = defaultdict(dict)
-    for direction, (uv, layer, double_sided) in faces.items():
-        axis, side, opposite = FACE_PLANES[direction]
-        plane = piece[side][axis]
-        if plane != bounds[side][axis]:
-            continue  # Only the source surfaces belong in the clipped box.
-        uv = clipped_uv(bounds, piece, direction, uv)
-        face = make_face(uv)
-        if double_sided:
-            panel = tuple(tuple(plane if i == axis else point[i] for i in range(3)) for point in piece)
-            by_position = dict(zip(face_vertices(panel, direction), uv))
-            reverse = make_face([by_position[v] for v in face_vertices(panel, opposite)])
-            groups[layer].append(element(panel, {direction: face, opposite: reverse}))
-        else:
-            single_sided[layer][direction] = face
-    for layer, box_faces in single_sided.items():
-        groups[layer].append(element(piece, box_faces))
+            element["rotation"] = {"angle": angle, "axis": "y", "origin": to_model(origin)}
+        elements.append(element)
 
 
-def make_model(groups):
-    base = {"parent": "minecraft:block/block", "ambientocclusion": False, "textures": {"particle": PARTICLE}}
-    if not groups:
-        return base
-    textures = {**base["textures"], "atlas": f"{NAMESPACE}:block/{NAME}/{Path(ATLAS).stem}"}
-    children = {layer: {**base, "textures": textures, "render_type": render_type, "elements": groups[layer]}
-                for layer, render_type in LAYERS.items() if layer in groups}
-    if len(children) == 1:
-        return next(iter(children.values()))
-    return {**base, "loader": "neoforge:composite", "children": children, "item_render_order": list(children)}
+def make_model(elements):
+    textures = {"particle": PARTICLE}
+    model = {"parent": "minecraft:block/block", "ambientocclusion": False, "textures": textures}
+    if elements:
+        textures["atlas"] = f"{NAMESPACE}:block/{NAME}/atlas"
+        model["render_type"] = "minecraft:cutout"
+        model["elements"] = elements
+    return model
 
 
 def write_json(path, model):
@@ -214,8 +189,8 @@ def main():
 
     # Match SlimeCultureChamberBlock's part numbering. The Blockbench front points south.
     cells = [(x, y, z) for y, z, x in product(range(0, 64, 16), range(-24, 24, 16), range(-24, 24, 16))]
-    block_groups = [defaultdict(list) for _ in cells]
-    item_groups = defaultdict(list)
+    block_elements = [[] for _ in cells]
+    item_elements = []
 
     for cube in source["elements"]:
         if not cube.get("export", True):
@@ -224,19 +199,19 @@ def main():
             raise ValueError(f"Expected an uninflated cube for {cube['name']}")
         bounds, angle, faces = prepare_cube(cube)
         origin = cube["origin"]
-        add_piece(item_groups, faces, bounds, bounds, origin, angle, (8, 0, 8), scale=0.25)
+        add_piece(item_elements, faces, bounds, bounds, origin, angle, (8, 0, 8), scale=0.25)
         for part, piece in split_cube(bounds, origin, angle, cells, cube["name"]):
             offset = tuple(-start for start in cells[part])
-            add_piece(block_groups[part], faces, bounds, piece, origin, angle, offset)
+            add_piece(block_elements[part], faces, bounds, piece, origin, angle, offset)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     TEXTURE_DIR.mkdir(parents=True, exist_ok=True)
     (TEXTURE_DIR / ATLAS).write_bytes(base64.b64decode(atlas["source"].split(",", 1)[1]))
 
     variants = []
-    for part, groups in enumerate(block_groups):
-        model_name = f"part_{part}" if groups else "empty"
-        write_json(MODEL_DIR / f"{model_name}.json", make_model(groups))
+    for part, elements in enumerate(block_elements):
+        model_name = f"part_{part}" if elements else "empty"
+        write_json(MODEL_DIR / f"{model_name}.json", make_model(elements))
         for facing, rotation in (("south", 0), ("west", 90), ("north", 180), ("east", 270)):
             model = {"model": f"{NAMESPACE}:block/{NAME}/{model_name}"}
             if rotation:
@@ -245,7 +220,7 @@ def main():
     (ASSETS / "blockstates" / f"{NAME}.json").write_text(
         '{\n  "variants": {\n' + ",\n".join(variants) + "\n  }\n}\n", encoding="utf-8", newline="\n")
 
-    item = make_model(item_groups)
+    item = make_model(item_elements)
     item["display"] = {
         "gui": {"rotation": [25, 35, 0], "scale": [0.8, 0.8, 0.8]},
         "fixed": {"scale": [0.75, 0.75, 0.75]},

@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.FrequencyPair;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.OrderEntry;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.RedstoneFrequency;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
@@ -28,6 +29,8 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.ListValue
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.MapValue;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.Missing;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.Scalar;
+
+import net.minecraft.network.chat.Component;
 
 /** Deterministic tick-driven Scratch interpreter with bounded budgets and decoupled I/O. */
 public final class ComputerRuntime {
@@ -48,7 +51,9 @@ public final class ComputerRuntime {
 	private final Map<Block, ValueCell> inlineCollections = new IdentityHashMap<>();
 	private final Map<Block, Long> cooldowns = new IdentityHashMap<>();
 	private final Random random = new Random();
-	private final int[] lastSignal = new int[Channel.VALUES.length];
+	private final Map<Block, FrequencyPair> watchedFrequencies = new IdentityHashMap<>();
+	private final Map<RedstoneFrequency, Integer> previousSignals = new HashMap<>();
+	private final Map<RedstoneFrequency, Integer> sampledSignals = new HashMap<>();
 	private final String[] lastDisplayInput = new String[ComputerIO.INPUT_SLOTS];
 	private Map<Block, Integer> commandIndices = Map.of();
 	private Status status = Status.READY;
@@ -56,8 +61,6 @@ public final class ComputerRuntime {
 	private int activeBlockIndex = -1;
 	@Nullable private ComputerProgram executionProgram;
 	@Nullable private Diagnostic diagnostic;
-	private int rising;
-	private int falling;
 	private boolean lastOrder;
 	private long timerStartTick;
 	private int stepBudget;
@@ -76,12 +79,13 @@ public final class ComputerRuntime {
 		nextScript = 0;
 		activeBlockIndex = -1;
 		lastOrder = false;
-		rising = 0;
-		falling = 0;
+		watchedFrequencies.clear();
+		previousSignals.clear();
+		sampledSignals.clear();
 		evalBudget = MAX_EVALS_PER_TICK;
 		timerStartTick = io.gameTick();
 		for (Channel channel : Channel.VALUES)
-			lastSignal[channel.ordinal()] = io.readRedstone(channel);
+			sampledSignals.put(channel, io.readRedstone(channel));
 		for (int i = 0; i < lastDisplayInput.length; i++)
 			lastDisplayInput[i] = io.readInputSlot(i);
 
@@ -97,10 +101,8 @@ public final class ComputerRuntime {
 					procedures.put(input(command, 0, io).strip(), body);
 				} else if (!body.isEmpty()) {
 					Event event = switch (command.op()) {
-						case WHEN_SIGNAL_CHANGED -> new Event(command.op(), channel(command, io).ordinal(), "");
-						case WHEN_INPUT_CHANGED -> new Event(command.op(),
-							index(command, io, ComputerIO.INPUT_SLOTS, Problem.INPUT_SLOT), "");
-						case ON_BROADCAST -> new Event(command.op(), -1, input(command, 0, io).strip());
+						case WHEN_SIGNAL_CHANGED, WHEN_INPUT_CHANGED -> new Event(command, "");
+						case ON_BROADCAST -> new Event(command, input(command, 0, io).strip());
 						default -> throw new IllegalStateException("Expected an event declaration");
 					};
 					scripts.add(new Script(event, body));
@@ -147,9 +149,14 @@ public final class ComputerRuntime {
 		if (status != Status.RUNNING)
 			return;
 		long now = io.gameTick();
-		detectEvents(io);
 		stepBudget = MAX_STEPS_PER_TICK;
 		evalBudget = MAX_EVALS_PER_TICK;
+		try {
+			detectEvents(io);
+		} catch (ComputerValue.LimitExceeded ignored) {
+			finish(Status.COLLECTION_LIMIT);
+			return;
+		}
 		for (int i = 0; i < scripts.size() && stepBudget > 0 && evalBudget > 0 && status == Status.RUNNING; i++) {
 			Script script = scripts.get(nextScript);
 			nextScript = (nextScript + 1) % scripts.size();
@@ -167,23 +174,15 @@ public final class ComputerRuntime {
 	}
 
 	private void detectEvents(ComputerIO io) {
-		rising = 0;
-		falling = 0;
-		int signalChanged = 0;
+		previousSignals.clear();
+		previousSignals.putAll(sampledSignals);
+		sampledSignals.clear();
+		for (Channel channel : Channel.VALUES)
+			sampledSignals.put(channel, io.readRedstone(channel));
+		for (FrequencyPair frequency : watchedFrequencies.values())
+			sampledSignals.computeIfAbsent(frequency, io::readRedstone);
+
 		int inputChanged = 0;
-		for (Channel channel : Channel.VALUES) {
-			int index = channel.ordinal();
-			int value = io.readRedstone(channel);
-			int previous = lastSignal[index];
-			if (value != previous) {
-				lastSignal[index] = value;
-				signalChanged |= 1 << index;
-				if (previous == 0)
-					rising |= 1 << index;
-				if (value == 0)
-					falling |= 1 << index;
-			}
-		}
 		for (int i = 0; i < lastDisplayInput.length; i++) {
 			String value = io.readInputSlot(i);
 			if (!value.equals(lastDisplayInput[i])) {
@@ -195,14 +194,24 @@ public final class ComputerRuntime {
 			Event event = script.event;
 			if (event == null)
 				continue;
-			script.pending |= switch (event.op()) {
-				case WHEN_SIGNAL_CHANGED -> (signalChanged & (1 << event.index())) != 0;
-				case WHEN_INPUT_CHANGED -> (inputChanged & (1 << event.index())) != 0;
-				case ON_BROADCAST -> script.broadcast;
-				default -> false;
-			};
+			try {
+				script.pending |= switch (event.op()) {
+					case WHEN_SIGNAL_CHANGED -> signalChange(event.declaration(), io).changed();
+					case WHEN_INPUT_CHANGED -> inputChanged(event.declaration(), io, inputChanged);
+					case ON_BROADCAST -> script.broadcast;
+					default -> false;
+				};
+			} catch (InvalidInput invalid) {
+				watchedFrequencies.remove(event.declaration());
+				report(event.declaration(), invalid.problem);
+			}
 			script.broadcast = false;
 		}
+	}
+
+	private boolean inputChanged(Block block, ComputerIO io, int changedSlots) {
+		ComputerValue slot = value(block, 0, io);
+		return slot != Missing.INSTANCE && (changedSlots & (1 << index(slot, ComputerIO.INPUT_SLOTS, Problem.INPUT_SLOT))) != 0;
 	}
 
 	private void tickScript(Script script, ComputerIO io, long now) {
@@ -342,16 +351,16 @@ public final class ComputerRuntime {
 				if (block.op() == Op.FOREVER || !condition(block, 0, io))
 					frames.push(new Frame(block.bodies().getFirst(), block, 0, now));
 			}
-			case SET -> putVariable(input(block, 0, io).strip(), value(block, 1, io));
+			case SET -> putVariable(destinationName(block, io), value(block, 1, io));
 			case CHANGE -> {
-				String name = input(block, 0, io).strip();
+				String name = destinationName(block, io);
 				putVariable(name, numeric(variableValue(name).asNumber() + number(block, 1, io)));
 			}
 			case TOGGLE -> {
-				String name = input(block, 0, io).strip();
+				String name = destinationName(block, io);
 				putVariable(name, bool(!variableValue(name).asBoolean()));
 			}
-			case LATCH -> putVariable(input(block, 0, io).strip(), bool(condition(block, 1, io)));
+			case LATCH -> putVariable(destinationName(block, io), bool(condition(block, 1, io)));
 			case SEED_RANDOM -> random.setSeed((long) number(block, 0, io));
 			case SPLIT_TEXT -> {
 				List<ComputerValue> entries = splitText(input(block, 0, io), input(block, 1, io)).stream()
@@ -388,14 +397,14 @@ public final class ComputerRuntime {
 				}
 			}
 			case MAP_SET -> {
-				String key = input(block, 1, io);
+				Scalar key = value(block, 1, io).asScalar();
 				ComputerValue entry = value(block, 2, io);
 				ValueCell target = collectionTarget(block, 0, Op.MAP, true, io);
 				if (target != null) {
-					Map<String, ComputerValue> entries = target.value.asMap();
-					if (entries.size() < MAX_ENTRIES || entries.containsKey(key)) {
-						Map<String, ComputerValue> updated = new LinkedHashMap<>(entries);
-						updated.put(key, entry);
+					Map<String, MapValue.Entry> entries = target.value.asMap();
+					if (entries.size() < MAX_ENTRIES || entries.containsKey(key.text())) {
+						Map<String, MapValue.Entry> updated = new LinkedHashMap<>(entries);
+						updated.put(key.text(), new MapValue.Entry(key, entry));
 						setValue(target, new MapValue(updated));
 					}
 				}
@@ -404,21 +413,25 @@ public final class ComputerRuntime {
 				ValueCell target = collectionTarget(block, 0, Op.MAP, false, io);
 				if (target != null) {
 					String key = input(block, 1, io);
-					Map<String, ComputerValue> entries = target.value.asMap();
+					Map<String, MapValue.Entry> entries = target.value.asMap();
 					if (entries.containsKey(key)) {
-						Map<String, ComputerValue> updated = new LinkedHashMap<>(entries);
+						Map<String, MapValue.Entry> updated = new LinkedHashMap<>(entries);
 						updated.remove(key);
 						setValue(target, new MapValue(updated));
 					}
 				}
 			}
 			case BIND_FREQUENCY, TUNE_FREQUENCY -> tuneFrequency(block, io);
-			case SEND_REDSTONE -> io.writeRedstone(channel(block, io), condition(block, 1, io) ? 15 : 0, 0);
-			case SET_REDSTONE -> io.writeRedstone(channel(block, io), power(block, io), 0);
-			case PULSE_REDSTONE -> io.writeRedstone(channel(block, io), power(block, io),
-				Math.clamp(Math.round(requireNumber(value(block, 2, io), Problem.DURATION)), 1, MAX_WAIT_TICKS));
-			case SET_LINE -> io.setOutputLine(index(block, io, ComputerIO.OUTPUT_LINES, Problem.OUTPUT_LINE), input(block, 1, io));
-			case DISPLAY -> io.appendOutput(input(block, 0, io));
+			case SEND_REDSTONE -> writeRedstone(redstoneFrequency(block, io), condition(block, 1, io) ? 15 : 0, 0, io);
+			case SET_REDSTONE -> writeRedstone(redstoneFrequency(block, io), power(block, io), 0, io);
+			case PULSE_REDSTONE -> writeRedstone(redstoneFrequency(block, io), power(block, io),
+				Math.clamp(Math.round(requireNumber(value(block, 2, io), Problem.DURATION)), 1, MAX_WAIT_TICKS), io);
+			case SET_LINE -> io.setOutputLine(index(block, io, ComputerIO.OUTPUT_LINES, Problem.OUTPUT_LINE),
+				value(block, 1, io).asDisplayLine());
+			case DISPLAY -> io.appendOutput(value(block, 0, io).asDisplayLine());
+			case DISPLAY_LINES, DISPLAY_ITEM_LIST -> value(block, 0, io)
+				.asDisplayLines(MAX_OUTPUT_LINES, block.op() == Op.DISPLAY_ITEM_LIST)
+				.forEach(io::appendOutput);
 			case CLEAR_OUTPUT -> io.clearOutput();
 			case RESET_TIMER -> timerStartTick = now;
 			case UPDATE_DISPLAY -> io.updateDisplay();
@@ -445,7 +458,7 @@ public final class ComputerRuntime {
 	private ComputerValue evaluate(Block block, ComputerIO io) {
 		evalBudget--;
 		return switch (block.op()) {
-			case ADD -> numeric(number(block, 0, io) + number(block, 1, io));
+			case ADD -> add(value(block, 0, io), value(block, 1, io));
 			case SUBTRACT -> numeric(number(block, 0, io) - number(block, 1, io));
 			case MULTIPLY -> numeric(number(block, 0, io) * number(block, 1, io));
 			case DIVIDE -> numeric(number(block, 0, io) / number(block, 1, io));
@@ -502,7 +515,7 @@ public final class ComputerRuntime {
 				int bit = rounded(block, 1, io, 1, 4) - 1;
 				yield bool((bits & (1 << bit)) != 0);
 			}
-			case JOIN -> new Scalar(input(block, 0, io) + input(block, 1, io));
+			case JOIN -> ComputerValue.join(List.of(value(block, 0, io), value(block, 1, io)), Missing.INSTANCE);
 			case LENGTH -> {
 				String text = input(block, 0, io);
 				yield numeric(text.codePointCount(0, text.length()));
@@ -536,13 +549,13 @@ public final class ComputerRuntime {
 				yield new Scalar("█".repeat(filled) + "░".repeat(width - filled));
 			}
 			case LIST_LENGTH -> numeric(list(block, io).size());
-			case LIST_JOIN -> new Scalar(String.join(input(block, 1, io), list(block, io).stream().map(ComputerValue::asText).toList()));
+			case LIST_JOIN -> ComputerValue.join(list(block, io), value(block, 1, io));
 			case MAP_HAS -> bool(map(block, io).containsKey(input(block, 1, io)));
 			case MAP_LENGTH -> numeric(map(block, io).size());
-			case READ_REDSTONE -> numeric(io.readRedstone(channel(block, io)));
-			case HAS_REDSTONE -> bool(io.readRedstone(channel(block, io)) > 0);
-			case RISING_EDGE -> bool((rising & (1 << channel(block, io).ordinal())) != 0);
-			case FALLING_EDGE -> bool((falling & (1 << channel(block, io).ordinal())) != 0);
+			case READ_REDSTONE -> numeric(io.readRedstone(redstoneFrequency(block, io)));
+			case HAS_REDSTONE -> bool(io.readRedstone(redstoneFrequency(block, io)) > 0);
+			case RISING_EDGE -> bool(signalChange(block, io).rising());
+			case FALLING_EDGE -> bool(signalChange(block, io).falling());
 			case READ_INPUT -> new Scalar(io.readInputSlot(index(block, io, ComputerIO.INPUT_SLOTS, Problem.INPUT_SLOT)));
 			case TIMER -> numeric(Math.max(0L, io.gameTick() - timerStartTick) / 20.0);
 			case STOCK_COUNT -> numeric(io.stockCount(stockFilters(list(block, io))));
@@ -553,17 +566,32 @@ public final class ComputerRuntime {
 			case STOCK_TOTAL -> numeric(io.stockTotal());
 			case STOCK_TYPES -> numeric(io.stockTypes());
 			case LAST_ORDER -> bool(lastOrder);
-			case VARIABLE -> variableValue(input(block, 0, io).strip());
+			case VARIABLE -> variableValue(fixedVariableName(block));
 			case LIST, MAP -> evaluateCollection(block, io);
 			case LIST_GET -> {
 				List<ComputerValue> entries = list(block, io);
 				int index = listIndex(block, io);
 				yield index < 0 || index >= entries.size() ? Missing.INSTANCE : entries.get(index);
 			}
-			case MAP_GET -> map(block, io).getOrDefault(input(block, 1, io), Missing.INSTANCE);
+			case MAP_GET -> {
+				MapValue.Entry entry = map(block, io).get(input(block, 1, io));
+				yield entry == null ? Missing.INSTANCE : entry.value();
+			}
 			case PICK_LIST -> {
 				List<ComputerValue> entries = list(block, io);
 				yield entries.isEmpty() ? Missing.INSTANCE : entries.get(random.nextInt(entries.size()));
+			}
+			case TO_TEXT -> value(block, 0, io).toText();
+			case TO_NUMBER -> numeric(number(block, 0, io));
+			case TO_BOOLEAN -> bool(condition(block, 0, io));
+			case TO_ITEM -> new Scalar(input(block, 0, io).strip(), DataType.ITEM);
+			case TO_LIST -> {
+				ComputerValue value = value(block, 0, io);
+				yield value instanceof ListValue ? value : new ListValue(value.asList());
+			}
+			case TO_MAP -> {
+				ComputerValue value = value(block, 0, io);
+				yield value instanceof MapValue ? value : new MapValue(value.asMap());
 			}
 			default -> throw new IllegalStateException("Expected a computer reporter: " + block.op());
 		};
@@ -579,14 +607,41 @@ public final class ComputerRuntime {
 				entries.add(value(block, i, io));
 			return new ListValue(entries);
 		}
-		Map<String, ComputerValue> entries = new LinkedHashMap<>();
-		for (int i = 0; i < block.inputs().size(); i += 2)
-			entries.put(clampValue(input(block, i, io)), value(block, i + 1, io));
+		Map<String, MapValue.Entry> entries = new LinkedHashMap<>();
+		for (int i = 0; i < block.inputs().size(); i += 2) {
+			Scalar key = value(block, i, io).asScalar();
+			entries.put(key.text(), new MapValue.Entry(key, value(block, i + 1, io)));
+		}
 		return new MapValue(entries);
 	}
 
+	private static ComputerValue add(ComputerValue first, ComputerValue second) {
+		if (first instanceof MapValue left && second instanceof MapValue right) {
+			Map<String, MapValue.Entry> entries = new LinkedHashMap<>(left.entries());
+			entries.putAll(right.entries());
+			if (entries.size() > MAX_ENTRIES)
+				throw new ComputerValue.LimitExceeded();
+			return new MapValue(entries);
+		}
+		if (first instanceof ListValue || second instanceof ListValue) {
+			List<ComputerValue> entries = new ArrayList<>(first.asList());
+			entries.addAll(second.asList());
+			if (entries.size() > MAX_ENTRIES)
+				throw new ComputerValue.LimitExceeded();
+			return new ListValue(entries);
+		}
+		if (isNumericOperand(first) && isNumericOperand(second))
+			return numeric(first.asNumber() + second.asNumber());
+		return ComputerValue.join(List.of(first, second), Missing.INSTANCE);
+	}
+
+	private static boolean isNumericOperand(ComputerValue value) {
+		return value == Missing.INSTANCE
+			|| value instanceof Scalar scalar && (scalar.type() == DataType.NUMBER || scalar.type() == DataType.BOOLEAN);
+	}
+
 	private void tuneFrequency(Block block, ComputerIO io) {
-		Channel channel = channel(block, io);
+		Channel channel = Channel.VALUES[index(block, io, Channel.VALUES.length, Problem.CHANNEL)];
 		String first = "";
 		String second = "";
 		if (block.inputs().get(1) instanceof Block inline && inline.op() == Op.LIST && !inlineCollections.containsKey(inline)) {
@@ -596,15 +651,13 @@ public final class ComputerRuntime {
 			if (inline.inputs().size() >= 2)
 				second = input(inline, 1, io).strip();
 		} else {
-			List<ComputerValue> entries = collectionValue(value(block, 1, io)).asList();
+			List<ComputerValue> entries = value(block, 1, io).asList();
 			if (!entries.isEmpty())
 				first = entries.getFirst().asText().strip();
 			if (entries.size() >= 2)
 				second = entries.get(1).asText().strip();
 		}
-		if ((!first.isEmpty() && !io.isItem(first, true)) || (!second.isEmpty() && !io.isItem(second, true)))
-			throw new InvalidInput(Problem.FREQUENCY);
-		io.tuneRedstone(channel, new FrequencyPair(first, second));
+		io.tuneRedstone(channel, frequencyPair(first, second, io));
 	}
 
 	private static List<String> stockFilters(List<ComputerValue> entries) {
@@ -634,7 +687,7 @@ public final class ComputerRuntime {
 		} else {
 			map(block, io).forEach((key, value) -> {
 				if (!key.isBlank())
-					entries.add(orderEntry(key, value, io));
+					entries.add(orderEntry(key, value.value(), io));
 			});
 		}
 		if (entries.isEmpty())
@@ -656,12 +709,46 @@ public final class ComputerRuntime {
 		return value(block, index, io).asBoolean();
 	}
 
-	private Channel channel(Block block, ComputerIO io) {
-		return Channel.VALUES[index(block, io, Channel.VALUES.length, Problem.CHANNEL)];
+	private RedstoneFrequency redstoneFrequency(Block block, ComputerIO io) {
+		ComputerValue source = value(block, 0, io);
+		if (Double.isFinite(source.tryNumber(false)))
+			return Channel.VALUES[index(source, Channel.VALUES.length, Problem.CHANNEL)];
+		List<ComputerValue> items = source.asList();
+		String first = items.isEmpty() ? "" : items.getFirst().asText().strip();
+		String second = items.size() < 2 ? "" : items.get(1).asText().strip();
+		return frequencyPair(first, second, io);
+	}
+
+	private static FrequencyPair frequencyPair(String first, String second, ComputerIO io) {
+		if ((!first.isEmpty() && !io.isItem(first, true)) || (!second.isEmpty() && !io.isItem(second, true)))
+			throw new InvalidInput(Problem.FREQUENCY);
+		return new FrequencyPair(first, second);
+	}
+
+	private static void writeRedstone(RedstoneFrequency frequency, int power, int duration, ComputerIO io) {
+		if (!io.writeRedstone(frequency, power, duration))
+			throw new InvalidInput(Problem.FREQUENCY_LIMIT);
+	}
+
+	private SignalChange signalChange(Block block, ComputerIO io) {
+		RedstoneFrequency frequency = redstoneFrequency(block, io);
+		if (frequency instanceof FrequencyPair pair && !pair.isEmpty()) {
+			watchedFrequencies.put(block, pair);
+		} else {
+			watchedFrequencies.remove(block);
+			if (frequency instanceof FrequencyPair)
+				return SignalChange.NONE;
+		}
+		int current = sampledSignals.computeIfAbsent(frequency, io::readRedstone);
+		return new SignalChange(previousSignals.getOrDefault(frequency, current), current);
 	}
 
 	private int index(Block block, ComputerIO io, int range, Problem problem) {
-		double number = value(block, 0, io).tryNumber(false);
+		return index(value(block, 0, io), range, problem);
+	}
+
+	private static int index(ComputerValue value, int range, Problem problem) {
+		double number = value.tryNumber(false);
 		if (!Double.isFinite(number) || number < 1 || number > range || number != Math.rint(number))
 			throw new InvalidInput(problem);
 		return (int) number - 1;
@@ -699,32 +786,42 @@ public final class ComputerRuntime {
 	}
 
 	private List<ComputerValue> list(Block block, ComputerIO io) {
-		return collectionValue(value(block, 0, io)).asList();
+		return value(block, 0, io).asList();
 	}
 
 	private int listIndex(Block block, ComputerIO io) {
 		return rounded(block, 1, io, 0, MAX_ENTRIES + 1) - 1;
 	}
 
-	private Map<String, ComputerValue> map(Block block, ComputerIO io) {
-		return collectionValue(value(block, 0, io)).asMap();
+	private Map<String, MapValue.Entry> map(Block block, ComputerIO io) {
+		return value(block, 0, io).asMap();
 	}
 
-	private ComputerValue collectionValue(ComputerValue value) {
-		return value instanceof Scalar name && name.type() == DataType.VARIABLE_NAME
-			? variableValue(name.text().strip()) : value;
+	private String destinationName(Block block, ComputerIO io) {
+		String name = referencedVariableName(block.inputs().getFirst());
+		return name == null ? input(block, 0, io).strip() : name;
+	}
+
+	@Nullable
+	private static String referencedVariableName(Input input) {
+		if (input instanceof Block reporter && reporter.op() == Op.VARIABLE)
+			return fixedVariableName(reporter);
+		return null;
+	}
+
+	private static String fixedVariableName(Block block) {
+		if (block.inputs().getFirst() instanceof Literal name)
+			return name.text().strip();
+		throw new IllegalStateException("Unfilled variable name");
 	}
 
 	@Nullable
 	private ValueCell collectionTarget(Block block, int index, Op kind, boolean create, ComputerIO io) {
 		Input source = block.inputs().get(index);
-		if (source instanceof Block reporter && reporter.op() == Op.VARIABLE) {
-			evalBudget--;
-			return namedCollection(input(reporter, 0, io).strip(), kind, create);
-		}
+		String name = referencedVariableName(source);
+		if (name != null)
+			return namedCollection(name, kind, create);
 		ComputerValue value = value(block, index, io);
-		if (value instanceof Scalar name && name.type() == DataType.VARIABLE_NAME)
-			return namedCollection(name.text().strip(), kind, create);
 		Block owner = source instanceof Block reporter && reporter.op().isCollection() ? reporter : block;
 		// An inline destination holds its edits until the program is restarted.
 		return inlineCollections.computeIfAbsent(owner, ignored -> new ValueCell(value));
@@ -790,6 +887,9 @@ public final class ComputerRuntime {
 		scripts.clear();
 		procedures.clear();
 		inlineCollections.clear();
+		watchedFrequencies.clear();
+		previousSignals.clear();
+		sampledSignals.clear();
 		commandIndices = Map.of();
 		if (diagnostic == null)
 			executionProgram = null;
@@ -800,9 +900,9 @@ public final class ComputerRuntime {
 
 	long version() { return version; }
 
-	Snapshot snapshot(List<String> output, List<ChannelState> channels, List<String> inputSlots, boolean stockLinkBound) {
+	Snapshot snapshot(List<Component> output, List<ChannelState> channels, List<String> inputSlots, boolean stockLinkBound) {
 		return new Snapshot(status, activeBlockIndex, diagnostic, output,
-			variables.entrySet().stream().map(entry -> new Variable(entry.getKey(), entry.getValue().value.asText())).toList(),
+			variables.entrySet().stream().map(entry -> new Variable(entry.getKey(), entry.getValue().value.asDisplay())).toList(),
 			channels, inputSlots, stockLinkBound);
 	}
 
@@ -914,29 +1014,26 @@ public final class ComputerRuntime {
 
 	public enum Status { READY, RUNNING, FINISHED, STOPPED, EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT, COLLECTION_LIMIT }
 
-	public enum Problem { CHANNEL, INPUT_SLOT, OUTPUT_LINE, SIGNAL_STRENGTH, DURATION, FREQUENCY, ITEM, QUANTITY, ADDRESS, ORDER_ITEMS }
+	public enum Problem { CHANNEL, INPUT_SLOT, OUTPUT_LINE, SIGNAL_STRENGTH, DURATION, FREQUENCY, ITEM, QUANTITY, ADDRESS, ORDER_ITEMS, FREQUENCY_LIMIT }
 
 	public record Diagnostic(Problem problem, int blockIndex) {}
 
-	public record Variable(String name, String value) {}
+	public record Variable(String name, Component value) {}
 
-	public record ChannelState(String first, String second, int input, int output) {
-		public boolean isBound() { return !first.isEmpty() || !second.isEmpty(); }
-	}
+	public record ChannelState(String first, String second, int input, int output) {}
 
 	public record Snapshot(
 		Status status,
 		int activeBlockIndex,
 		@Nullable Diagnostic diagnostic,
-		List<String> output,
+		List<Component> output,
 		List<Variable> variables,
 		List<ChannelState> channels,
 		List<String> inputSlots,
 		boolean stockLinkBound
 	) {
 		static final Snapshot EMPTY = new Snapshot(
-			Status.READY, -1, null, List.of(), List.of(),
-			Collections.nCopies(Channel.VALUES.length, new ChannelState("", "", 0, 0)),
+			Status.READY, -1, null, List.of(), List.of(), List.of(),
 			Collections.nCopies(ComputerIO.INPUT_SLOTS, ""), false
 		);
 
@@ -957,7 +1054,17 @@ public final class ComputerRuntime {
 		}
 	}
 
-	private record Event(Op op, int index, String message) {}
+	private record Event(Block declaration, String message) {
+		Op op() { return declaration.op(); }
+	}
+
+	private record SignalChange(int previous, int current) {
+		private static final SignalChange NONE = new SignalChange(0, 0);
+
+		boolean changed() { return previous != current; }
+		boolean rising() { return previous == 0 && current > 0; }
+		boolean falling() { return previous > 0 && current == 0; }
+	}
 
 	private static final class ValueCell {
 		private ComputerValue value;
