@@ -1,8 +1,5 @@
 package com.nobodiiiii.createbiotech.content.biopackager;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
@@ -13,10 +10,11 @@ import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.compat.computercraft.events.PackageEvent;
+import com.simibubi.create.content.logistics.BigItemStack;
+import com.simibubi.create.content.logistics.packager.InventorySummary;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
 import com.simibubi.create.content.logistics.packager.PackagerItemHandler;
 import com.simibubi.create.content.logistics.packager.PackagingRequest;
-import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBehaviour.RequestType;
 
 import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.core.BlockPos;
@@ -35,9 +33,6 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 
 public class BioPackagerBlockEntity extends PackagerBlockEntity {
 
-	private static final int MAX_QUEUED_CREATURE_RELEASES = 50;
-
-	private final Deque<ItemStack> queuedCreatureReleases = new ArrayDeque<>();
 	private ItemStack captureOutput = ItemStack.EMPTY;
 	private boolean releasePending;
 	private boolean biologicalTray;
@@ -49,7 +44,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 
 	@Override
 	public void tick() {
-		tryStartQueuedCreatureRelease();
 		boolean wasAnimating = animationTicks > 0;
 		super.tick();
 		if (!(level instanceof ServerLevel server) || animationTicks != 0)
@@ -90,12 +84,8 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	public boolean canStartPacking() {
-		return canUseTray() && queuedExitingPackages.isEmpty() && queuedCreatureReleases.isEmpty();
-	}
-
-	private boolean canUseTray() {
 		return level instanceof ServerLevel && !isRemoved() && !releasePending && !chamberReserved
-			&& animationTicks == 0 && heldBox.isEmpty();
+			&& animationTicks == 0 && heldBox.isEmpty() && queuedExitingPackages.isEmpty();
 	}
 
 	public boolean startPacking(ItemStack box) {
@@ -128,19 +118,14 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	@Override
-	public boolean isTooBusyFor(RequestType type) {
-		return chamberReserved || super.isTooBusyFor(type);
+	public InventorySummary getAvailableItems() {
+		return InventorySummary.EMPTY;
 	}
 
 	@Override
 	public void attemptToSend(@Nullable List<PackagingRequest> requests) {
-		if (chamberReserved)
-			return;
-		if (requests != null) {
-			super.attemptToSend(requests);
-		} else {
+		if (requests == null)
 			tryReleaseFromAttachedInventory();
-		}
 	}
 
 	private boolean canReleaseCreature() {
@@ -154,61 +139,23 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		if (handler == null)
 			return;
 		for (int slot = 0; slot < handler.getSlots(); slot++) {
-			ItemStack box = takeCreatureBox(handler, slot, null);
+			if (!isCreaturePackage(handler.getStackInSlot(slot)) || !isCreaturePackage(handler.extractItem(slot, 1, true)))
+				continue;
+
+			ItemStack box = handler.extractItem(slot, 1, false);
 			if (box.isEmpty())
 				continue;
-			if (canReleaseCreature())
-				startCreatureRelease(box);
-			else
-				restoreCreatureBox(handler, slot, box);
+
+			if (isCreaturePackage(box) && canReleaseCreature()) {
+				prepareRelease(box);
+				setTrayAnimation(heldBox, ItemStack.EMPTY, false, getCycleTicks());
+				notifyUpdate();
+			} else {
+				ItemStack remainder = handler.insertItem(slot, box, false);
+				dropAtPackager(ItemHandlerHelper.insertItemStacked(handler, remainder, false));
+			}
 			return;
 		}
-	}
-
-	int getCreatureReleaseCapacity() {
-		if (!(level instanceof ServerLevel) || isRemoved() || chamberReserved || isReleaseBlocked())
-			return 0;
-		return MAX_QUEUED_CREATURE_RELEASES - queuedCreatureReleases.size();
-	}
-
-	ItemStack takeCreatureBox(IItemHandler handler, int slot, @Nullable ItemStack requested) {
-		if (!matchesCreatureBox(handler.getStackInSlot(slot), requested)
-			|| !matchesCreatureBox(handler.extractItem(slot, 1, true), requested))
-			return ItemStack.EMPTY;
-
-		ItemStack box = handler.extractItem(slot, 1, false);
-		if (matchesCreatureBox(box, requested))
-			return box;
-		restoreCreatureBox(handler, slot, box);
-		return ItemStack.EMPTY;
-	}
-
-	private static boolean matchesCreatureBox(ItemStack stack, @Nullable ItemStack requested) {
-		return requested == null ? isCreaturePackage(stack) : ItemStack.isSameItemSameComponents(stack, requested);
-	}
-
-	void restoreCreatureBox(IItemHandler handler, int slot, ItemStack box) {
-		if (!box.isEmpty()) {
-			ItemStack remainder = handler.insertItem(slot, box, false);
-			dropAtPackager(ItemHandlerHelper.insertItemStacked(handler, remainder, false));
-		}
-	}
-
-	void queueCreatureRelease(ItemStack box) {
-		queuedCreatureReleases.addLast(box);
-		setChanged();
-	}
-
-	void tryStartQueuedCreatureRelease() {
-		if (!queuedCreatureReleases.isEmpty() && canUseTray() && !isReleaseBlocked())
-			startCreatureRelease(queuedCreatureReleases.removeFirst());
-	}
-
-	private void startCreatureRelease(ItemStack box) {
-		prepareRelease(box);
-		setTrayAnimation(heldBox, ItemStack.EMPTY, false, getCycleTicks());
-		triggerStockCheck();
-		notifyUpdate();
 	}
 
 	private boolean isReleaseBlocked() {
@@ -242,7 +189,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 			animateInventoryDeposit(box);
 		else
 			setTrayAnimation(ItemStack.EMPTY, ItemStack.EMPTY, true, 0);
-		triggerStockCheck();
 		dropAtPackager(leftover);
 		notifyUpdate();
 	}
@@ -259,7 +205,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		}
 		animateInventoryDeposit(heldBox);
 		captureOutput = ItemStack.EMPTY;
-		triggerStockCheck();
 		notifyUpdate();
 	}
 
@@ -307,16 +252,8 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 	@Override
 	public void clearContent() {
 		super.clearContent();
-		queuedCreatureReleases.clear();
 		captureOutput = ItemStack.EMPTY;
 		releasePending = false;
-	}
-
-	@Override
-	public void destroy() {
-		super.destroy();
-		queuedCreatureReleases.forEach(this::dropAtPackager);
-		queuedCreatureReleases.clear();
 	}
 
 	@Override
@@ -336,12 +273,11 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		}
 		animationTicks = Mth.clamp(animationTicks, 0, getAnimationCycle());
 		captureOutput = tag.getBoolean("PackedBoxPending") ? heldBox : ItemStack.EMPTY;
-		if (!clientPacket) {
-			queuedCreatureReleases.clear();
-			NBTHelper.readItemList(tag.getList("QueuedCreatureReleases", Tag.TAG_COMPOUND), registries)
-				.stream()
-				.filter(BioPackagerBlockEntity::isCreaturePackage)
-				.forEach(queuedCreatureReleases::addLast);
+		if (!clientPacket && tag.contains("QueuedCreatureReleases", Tag.TAG_LIST)) {
+			// Boxes already withdrawn by old orders can be collected at the tray.
+			for (ItemStack box : NBTHelper.readItemList(tag.getList("QueuedCreatureReleases", Tag.TAG_COMPOUND), registries))
+				if (!box.isEmpty())
+					queuedExitingPackages.add(new BigItemStack(box.copyWithCount(1), box.getCount()));
 		}
 	}
 
@@ -352,8 +288,7 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		tag.putBoolean("ChamberAnimation", chamberReserved);
 		tag.putBoolean("BiologicalTray", biologicalTray);
 		tag.putBoolean("PackedBoxPending", hasCaptureOutput());
-		if (!clientPacket && !queuedCreatureReleases.isEmpty())
-			tag.put("QueuedCreatureReleases", NBTHelper.writeItemList(new ArrayList<>(queuedCreatureReleases), registries));
+		tag.remove("LastSummary");
 	}
 
 	public int getAnimationCycle() {

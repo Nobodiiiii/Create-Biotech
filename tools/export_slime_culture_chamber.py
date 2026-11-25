@@ -15,9 +15,19 @@ NAME = "slime_culture_chamber"
 NAMESPACE = "create_biotech"
 MODEL_DIR = ASSETS / "models/block" / NAME
 TEXTURE_DIR = ASSETS / "textures/block" / NAME
+ATLAS = "atlas.png"
+ATLAS_SIZE = (256, 128)
 PARTICLE = "create:block/zinc_block"
 LAYERS = {"frame": "minecraft:cutout", "interior": "minecraft:translucent"}
 EPSILON = 1e-7
+
+# UV bounds in atlas pixels. The materials share the sprite but keep their render settings.
+MATERIAL_REGIONS = {
+    "materials": (0, 0, 192, 128),
+    "glass": (192, 0, 256, 48),
+    "slime_shell": (192, 48, 256, 68),
+    "phosphor": (192, 68, 256, 128),
+}
 
 # Counterclockwise corner order, starting at the top-left corner of each UV rectangle.
 FACE_CORNERS = {
@@ -30,7 +40,7 @@ FACE_CORNERS = {
 }
 
 
-def cube_faces(cube, textures):
+def cube_faces(cube, atlas):
     origin = cube["origin"]
     angles = [math.radians(angle) for angle in cube.get("rotation", (0, 0, 0))]
     if sum(angle != 0 for angle in angles) > 1:
@@ -49,16 +59,24 @@ def cube_faces(cube, textures):
         texture_index = face["texture"]
         if texture_index is None:
             continue
-        texture = textures[texture_index]
-        width, height = texture["uv_width"], texture["uv_height"]
+        if texture_index != 0:
+            raise ValueError(f"Expected atlas UVs for {cube['name']} {direction}")
+        width, height = atlas["uv_width"], atlas["uv_height"]
         u0, v0, u1, v1 = face["uv"]
+        u_min, u_max = sorted((u0, u1))
+        v_min, v_max = sorted((v0, v1))
+        for material, (left, top, right, bottom) in MATERIAL_REGIONS.items():
+            if left <= u_min < u_max <= right and top <= v_min < v_max <= bottom:
+                break
+        else:
+            raise ValueError(f"UVs cross atlas material bounds for {cube['name']} {direction}")
         corners = ((u0, v0), (u0, v1), (u1, v1), (u1, v0))
         uv_turns = face.get("rotation", 0) // 90
         polygon = []
         for index, corner in enumerate(FACE_CORNERS[direction]):
             u, v = corners[(index + uv_turns) % 4]
             polygon.append((*position(corner), u / width, 1 - v / height))
-        yield texture, polygon
+        yield material, polygon
 
 
 def clip(polygon, axis, boundary, sign):
@@ -114,11 +132,10 @@ def split_face(polygon, cells):
                          for vertex in face]
 
 
-def add_face(groups, texture, face):
-    material = Path(texture["name"]).stem
+def add_face(groups, material, face):
     layer = "interior" if material in {"slime_shell", "phosphor"} else "frame"
     groups[layer][material].append(face)
-    if texture.get("render_sides") == "double":
+    if material in {"glass", "phosphor"}:
         groups[layer][material].append(list(reversed(face)))
 
 
@@ -170,7 +187,9 @@ def write_json(path, model):
 
 def main():
     source = json.loads(SOURCE.read_text(encoding="utf-8"))
-    textures = source["textures"]
+    atlas, = source["textures"]
+    if atlas["name"] != ATLAS or (atlas["uv_width"], atlas["uv_height"]) != ATLAS_SIZE:
+        raise ValueError(f"Expected {ATLAS} with UV size {ATLAS_SIZE}")
     for group in source["groups"]:
         if any(group.get("rotation", (0, 0, 0))) or not group.get("export", True):
             raise ValueError(f"Unsupported group settings for {group['name']}")
@@ -184,25 +203,24 @@ def main():
             continue
         if cube["type"] != "cube" or cube.get("inflate", 0):
             raise ValueError(f"Expected an uninflated cube for {cube['name']}")
-        for texture, face in cube_faces(cube, textures):
+        for material, face in cube_faces(cube, atlas):
             for x, y, z, _, _ in face:
                 if max(abs(x), abs(z)) > 24 + EPSILON or not -EPSILON <= y <= 64 + EPSILON:
                     raise ValueError(f"Cube crosses the 3×4×3 export bounds: {cube['name']}")
             item_face = [(0.5 + x / 64, y / 64, 0.5 + z / 64, u, v) for x, y, z, u, v in face]
-            add_face(item_groups, texture, item_face)
+            add_face(item_groups, material, item_face)
             for part, piece in split_face(face, cells):
-                add_face(block_groups[part], texture, piece)
+                add_face(block_groups[part], material, piece)
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     TEXTURE_DIR.mkdir(parents=True, exist_ok=True)
+    (TEXTURE_DIR / ATLAS).write_bytes(base64.b64decode(atlas["source"].split(",", 1)[1]))
     materials = []
-    for texture in textures:
-        data = base64.b64decode(texture["source"].split(",", 1)[1])
-        (TEXTURE_DIR / texture["name"]).write_bytes(data)
-        name = Path(texture["name"]).stem
-        ambient = 1 if texture.get("render_mode") == "emissive" else 0
+    atlas_location = f"{NAMESPACE}:block/{NAME}/{Path(ATLAS).stem}"
+    for name in MATERIAL_REGIONS:
+        ambient = int(name == "phosphor")
         materials.extend([f"newmtl {name}", f"Ka {ambient} {ambient} {ambient}",
-                          f"map_Kd {NAMESPACE}:block/{NAME}/{name}", ""])
+                          f"map_Kd {atlas_location}", ""])
     (MODEL_DIR / f"{NAME}.mtl").write_text("\n".join(materials), encoding="utf-8", newline="\n")
 
     variants = []

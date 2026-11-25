@@ -35,19 +35,22 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
 
 /** Base item for kits which store a selected logical tool without creating or consuming its display stack. */
-public class SurgicalKitItem extends Item {
+public class SurgicalKitItem extends BlockItem {
 	public static final int MAX_DURABILITY = 200;
 	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
 	private static final List<Tool> STANDARD_TOOLS = List.of(Tool.SHEARS, Tool.SHOVEL,
@@ -77,12 +80,12 @@ public class SurgicalKitItem extends Item {
 		.build(CacheLoader.from(SurgicalKitItem::readSelectedTool));
 	private final List<Tool> availableTools;
 
-	public SurgicalKitItem(Properties properties) {
-		this(properties, STANDARD_TOOLS);
+	public SurgicalKitItem(SurgicalKitBlock block, Properties properties) {
+		this(block, properties, STANDARD_TOOLS);
 	}
 
-	protected SurgicalKitItem(Properties properties, List<Tool> availableTools) {
-		super(properties);
+	protected SurgicalKitItem(SurgicalKitBlock block, Properties properties, List<Tool> availableTools) {
+		super(block, properties);
 		if (availableTools == null || availableTools.isEmpty())
 			throw new IllegalArgumentException("A surgical kit must contain at least one tool");
 		this.availableTools = List.copyOf(availableTools);
@@ -95,10 +98,43 @@ public class SurgicalKitItem extends Item {
 	}
 
 	@Override
+	public InteractionResult place(BlockPlaceContext context) {
+		ItemStack stack = context.getItemInHand();
+		if (selectedTool(stack) != null || SurgicalKitBlockEntity.isLoaned(stack))
+			return InteractionResult.PASS;
+		return super.place(context);
+	}
+
+	@Override
+	public boolean onEntityItemUpdate(ItemStack stack, ItemEntity entity) {
+		if (!(entity.level() instanceof ServerLevel server))
+			return false;
+		SurgicalKitBlockEntity kit = SurgicalKitBlockEntity.findLoan(server, stack);
+		if (kit == null)
+			return false;
+		kit.acceptReturn(stack.copy());
+		entity.discard();
+		return true;
+	}
+
+	@Override
+	public void onDestroyed(ItemEntity entity) {
+		if (entity.level() instanceof ServerLevel server) {
+			SurgicalKitBlockEntity kit = SurgicalKitBlockEntity.findLoan(server, entity.getItem());
+			if (kit != null)
+				kit.getLevel().destroyBlock(kit.getBlockPos(), false);
+		}
+		super.onDestroyed(entity);
+	}
+
+	@Override
 	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-		if (!availableTools.contains(Tool.TEMPORARY_BOX) || !(level instanceof ServerLevel currentLevel)
+		if (!(level instanceof ServerLevel currentLevel)
 			|| Math.floorMod(level.getGameTime() + entity.getId() + slotId,
 				TEMPORARY_MOVE_VALIDATION_INTERVAL) != 0)
+			return;
+		SurgicalKitBlockEntity.findLoan(currentLevel, stack);
+		if (!availableTools.contains(Tool.TEMPORARY_BOX))
 			return;
 		CompoundTag root = CBItemData.getReadOnly(stack);
 		boolean hasMoveData = root != null && root.contains(TEMPORARY_MOVE_TAG, Tag.TAG_COMPOUND);
@@ -147,11 +183,15 @@ public class SurgicalKitItem extends Item {
 		return component.read(SELECTED_TOOL_FIELD).result().flatMap(id -> id).map(Tool::byId);
 	}
 
-	public static void setSelectedTool(ItemStack stack, Tool tool) {
-		if (!(stack.getItem() instanceof SurgicalKitItem kit) || tool == null
-			|| !kit.availableTools.contains(tool))
+	public static void setSelectedTool(ItemStack stack, @Nullable Tool tool) {
+		if (!(stack.getItem() instanceof SurgicalKitItem kit))
 			return;
-		CBItemData.edit(stack, tag -> tag.putString(SELECTED_TOOL_TAG, tool.id));
+		if (tool == null) {
+			if (selectedTool(stack) != null)
+				CBItemData.edit(stack, tag -> tag.remove(SELECTED_TOOL_TAG));
+		} else if (kit.availableTools.contains(tool)) {
+			CBItemData.edit(stack, tag -> tag.putString(SELECTED_TOOL_TAG, tool.id));
+		}
 	}
 
 	public static List<Tool> availableTools(ItemStack stack) {

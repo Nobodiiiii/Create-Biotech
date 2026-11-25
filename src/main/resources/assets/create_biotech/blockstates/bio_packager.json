@@ -1,22 +1,16 @@
 {
   "variants": {
-    "facing=down,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block_vertical"},
-    "facing=down,linked=true": {"model": "create_biotech:block/bio_packager/block_vertical_linked"},
-    "facing=down,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_vertical_powered"},
-    "facing=east,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 270},
-    "facing=east,linked=true": {"model": "create_biotech:block/bio_packager/block_linked", "y": 270},
-    "facing=east,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 270},
-    "facing=north,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 180},
-    "facing=north,linked=true": {"model": "create_biotech:block/bio_packager/block_linked", "y": 180},
-    "facing=north,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 180},
-    "facing=south,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block"},
-    "facing=south,linked=true": {"model": "create_biotech:block/bio_packager/block_linked"},
-    "facing=south,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_powered"},
-    "facing=up,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block_vertical"},
-    "facing=up,linked=true": {"model": "create_biotech:block/bio_packager/block_vertical_linked"},
-    "facing=up,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_vertical_powered"},
-    "facing=west,linked=false,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 90},
-    "facing=west,linked=true": {"model": "create_biotech:block/bio_packager/block_linked", "y": 90},
-    "facing=west,linked=false,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 90}
+    "facing=down,powered=false": {"model": "create_biotech:block/bio_packager/block_vertical"},
+    "facing=down,powered=true": {"model": "create_biotech:block/bio_packager/block_vertical_powered"},
+    "facing=east,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 270},
+    "facing=east,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 270},
+    "facing=north,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 180},
+    "facing=north,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 180},
+    "facing=south,powered=false": {"model": "create_biotech:block/bio_packager/block"},
+    "facing=south,powered=true": {"model": "create_biotech:block/bio_packager/block_powered"},
+    "facing=up,powered=false": {"model": "create_biotech:block/bio_packager/block_vertical"},
+    "facing=up,powered=true": {"model": "create_biotech:block/bio_packager/block_vertical_powered"},
+    "facing=west,powered=false": {"model": "create_biotech:block/bio_packager/block", "y": 90},
+    "facing=west,powered=true": {"model": "create_biotech:block/bio_packager/block_powered", "y": 90}
   }
 }

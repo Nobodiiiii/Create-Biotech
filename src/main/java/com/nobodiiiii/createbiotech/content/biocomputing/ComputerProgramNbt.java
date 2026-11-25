@@ -14,7 +14,7 @@ import net.minecraft.nbt.Tag;
 
 /** Single-version bounded NBT persistence for Scratch programs, keyed by stable Op names. */
 final class ComputerProgramNbt {
-	static final int FORMAT_VERSION = 1;
+	static final int FORMAT_VERSION = 2;
 
 	private static final String KEY_VERSION = "Version";
 	private static final String KEY_COMMANDS = "Commands";
@@ -95,7 +95,7 @@ final class ComputerProgramNbt {
 				throw new IllegalArgumentException("Unknown computer op");
 
 			ListTag inputTags = tag.getList(KEY_INPUTS, Tag.TAG_COMPOUND);
-			if (inputTags.size() != op.slots().size())
+			if (!op.acceptsInputCount(inputTags.size()))
 				throw new IllegalArgumentException("Mismatched input count for " + op);
 			List<Input> inputs = new ArrayList<>(inputTags.size());
 			for (int i = 0; i < inputTags.size(); i++) {
@@ -103,10 +103,7 @@ final class ComputerProgramNbt {
 				if (entry.contains(KEY_BLOCK, Tag.TAG_COMPOUND)) {
 					inputs.add(block(entry.getCompound(KEY_BLOCK), depth + 1));
 				} else {
-					String literal = entry.getString(KEY_LITERAL);
-					if (literal.length() > ComputerProgram.MAX_LITERAL_LENGTH)
-						throw new IllegalArgumentException("Literal exceeds max length");
-					inputs.add(new Literal(literal));
+					inputs.add(new Literal(entry.getString(KEY_LITERAL)));
 				}
 			}
 

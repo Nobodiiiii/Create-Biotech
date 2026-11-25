@@ -6,6 +6,7 @@ import java.util.List;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -16,10 +17,12 @@ import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -37,6 +40,7 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float FACE_OFFSET = 1.0f / 128.0f;
 	private static final float MAX_FLATTENED_DEPTH_OFFSET = 1.0f / 512.0f;
 	private static final float ICON_FRAME_FILL = 0.6f;
+	private static final float STOCK_SLOT_ICON_SIZE = 14.0f;
 	private static final float MAX_AUTO_RENDER_SCALE = 1.5f;
 	private static final float MIN_VISIBLE_FACE_DOT = 1.0e-4f;
 	private static final int MAX_CAPTURED_VERTICES = 262_144;
@@ -48,6 +52,38 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final Vector3f FACE_NORMAL_SCRATCH = new Vector3f();
 
 	private CapturedEntityBoxIconRenderer() {}
+
+	public static boolean renderInStockSlot(ItemStack stack, GuiGraphics graphics) {
+		if (!CapturedEntityBoxItem.isBox(stack) || !CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes())
+			return false;
+
+		CapturedEntityBoxHelper.CapturedEntityRenderData renderData = CapturedEntityBoxHelper.getCapturedEntityRenderData(stack);
+		if (renderData == null)
+			return false;
+		FaceBounds face = FaceBounds.of(stack);
+		BakedCapturedEntityIcon icon = CapturedEntityRenderManager.getOrSchedule(renderData, face.large(),
+			CapturedEntityRenderManager.RequestPriority.GUI);
+		if (icon == null || icon.isEmpty())
+			return false;
+
+		// Reuse the box-face mesh with its face turned toward the screen and sized to the slot.
+		float scale = STOCK_SLOT_ICON_SIZE / (face.itemScale() * ICON_FRAME_FILL);
+		graphics.flush();
+		Lighting.setupFor3DItems();
+		PoseStack pose = graphics.pose();
+		pose.pushPose();
+		try {
+			pose.translate(8.0f, 8.0f, 150.0f);
+			pose.scale(scale, -scale, scale);
+			pose.mulPose(Axis.YP.rotationDegrees(-ITEM_PLANE_TO_FACE_Y_ROT));
+			pose.translate(-face.x() - FACE_OFFSET, -face.centerY(), -face.centerZ());
+			icon.render(pose, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+			graphics.flush();
+		} finally {
+			pose.popPose();
+		}
+		return true;
+	}
 
 	public static void renderOnEntity(ItemStack stack, float yaw, PoseStack poseStack, MultiBufferSource buffer,
 		int light) {

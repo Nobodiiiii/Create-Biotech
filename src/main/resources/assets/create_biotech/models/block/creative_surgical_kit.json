@@ -1,0 +1,4 @@
+{
+  "parent": "create_biotech:item/creative_surgical_kit",
+  "render_type": "minecraft:cutout_mipped"
+}

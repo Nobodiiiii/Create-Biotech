@@ -9,8 +9,6 @@ import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.IncompleteAl
 import com.nobodiiiii.createbiotech.content.dingdongchicken.ChickenItemRenderer;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenItem;
 import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
-import com.nobodiiiii.createbiotech.content.biopackager.CreatureStockItem;
-import com.nobodiiiii.createbiotech.content.biopackager.CreatureStockItemRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatItemRenderer;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
@@ -84,8 +82,6 @@ final class CBClientExtensions {
 			return itemRenderer(new SurgicalJointItemRenderer());
 		if (item instanceof BionicDonorPreviewItem)
 			return itemRenderer(new BionicDonorPreviewItemRenderer());
-		if (item instanceof CreatureStockItem)
-			return itemRenderer(new CreatureStockItemRenderer());
 		// Fixed JSON creature renderers must precede the generic entity-item fallback.
 		if (item instanceof AllayCourierItem courier)
 			return itemRenderer(new AllayCourierItemRenderer(true, courier.getRenderedEntityScaleMultiplier()));

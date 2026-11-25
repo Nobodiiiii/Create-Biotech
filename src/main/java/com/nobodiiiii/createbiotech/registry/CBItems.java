@@ -35,7 +35,6 @@ import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
-import com.nobodiiiii.createbiotech.content.biopackager.CreatureStockItem;
 import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
@@ -140,11 +139,13 @@ public class CBItems {
 		() -> new BlockItem(CBBlocks.SURGICAL_TABLE.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, SurgicalKitItem> SURGICAL_KIT = ITEMS.register("surgical_kit",
-		() -> new SurgicalKitItem(new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY)));
+		() -> new SurgicalKitItem(CBBlocks.SURGICAL_KIT.get(),
+			new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY)));
 
 	public static final DeferredHolder<Item, CreativeSurgicalKitItem> CREATIVE_SURGICAL_KIT =
 		ITEMS.register("creative_surgical_kit",
-			() -> new CreativeSurgicalKitItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+			() -> new CreativeSurgicalKitItem(CBBlocks.CREATIVE_SURGICAL_KIT.get(),
+				new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
 
 	public static final DeferredHolder<Item, SurgicalJointItem> SURGICAL_JOINT = ITEMS.register("surgical_joint",
 		() -> new SurgicalJointItem(new Item.Properties()));
@@ -290,9 +291,6 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> BIO_PACKAGER = ITEMS.register("bio_packager",
 		() -> new BlockItem(CBBlocks.BIO_PACKAGER.get(), new Item.Properties()));
-
-	public static final DeferredHolder<Item, CreatureStockItem> CREATURE_STOCK = ITEMS.register("creature_stock",
-		() -> new CreatureStockItem(new Item.Properties().stacksTo(64)));
 
 	public static final DeferredHolder<Item, Item> POWERED_CAPTURE_NET = ITEMS.register("powered_capture_net",
 		() -> new BlockItem(CBBlocks.POWERED_CAPTURE_NET.get(), new Item.Properties()));

@@ -24,7 +24,7 @@
 | 末影库存管理器传送门贴图 | `textures/block/enderman_portal.png` | `textures/block/enderman_stock_keeper/portal.png` |
 | 万向联轴器部件模型和史莱姆贴图 | `block/universal_joint_endpoint{,_slime_overlay}` | `block/universal_joint/endpoint{,_slime_overlay}` |
 | 半轴、恶魂热气球装配站、岩浆怪燃烧器、唤魔者附魔室附属模型 | `block/half_shaft_world`、`block/ghast_hot_air_balloon_assembly_station_powered`、`block/magma_cube_burner_burning`、`block/evoker_enchanting_chamber_placeholder` | `block/half_shaft/world`、`block/ghast_hot_air_balloon_assembly_station/block_powered`、`block/magma_cube_burner/block_burning`、`block/evoker_enchanting_chamber/particle` |
-| 生物打包机世界模型 | `block/bio_packager/horizontal_<状态>` 和 `block/bio_packager/vertical_<状态>` | 水平用 `block/bio_packager/block{,_powered,_linked}`，垂直用 `block/bio_packager/block_vertical{,_powered,_linked}` |
+| 生物打包机世界模型 | `block/bio_packager/horizontal_<状态>` 和 `block/bio_packager/vertical_<状态>` | 水平用 `block/bio_packager/block{,_powered}`，垂直用 `block/bio_packager/block_vertical{,_powered}` |
 | 生物打包机物品模型部件 | `block/bio_packager/inventory` | `block/bio_packager/item` |
 
 当前创造栏分类使用 `work_in_progress` 图标。旧 `logistics` 与 `structures` 图标已从内置资源移除。

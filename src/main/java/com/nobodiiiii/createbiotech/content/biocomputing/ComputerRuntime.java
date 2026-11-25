@@ -17,6 +17,8 @@ import java.util.regex.Pattern;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.FrequencyPair;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.OrderEntry;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Literal;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
@@ -333,7 +335,10 @@ public final class ComputerRuntime {
 				if (map != null)
 					map.remove(input(block, 1, io));
 			}
-			case BIND_FREQUENCY, TUNE_FREQUENCY -> io.tuneRedstone(channel(block, io), input(block, 1, io), input(block, 2, io));
+			case BIND_FREQUENCY, TUNE_FREQUENCY -> {
+				Block pair = (Block) block.inputs().get(1);
+				io.tuneRedstone(channel(block, io), new FrequencyPair(collectionInput(pair, 0, io), collectionInput(pair, 1, io)));
+			}
 			case SEND_REDSTONE -> io.writeRedstone(channel(block, io), condition(block, 1, io) ? 15 : 0, 0);
 			case SET_REDSTONE -> io.writeRedstone(channel(block, io), rounded(block, 1, io, 0, 15), 0);
 			case PULSE_REDSTONE -> io.writeRedstone(channel(block, io), rounded(block, 1, io, 0, 15),
@@ -346,9 +351,9 @@ public final class ComputerRuntime {
 			case ORDER_ITEM -> {
 				String item = input(block, 0, io);
 				long count = Math.round(number(input(block, 1, io)));
-				lastOrder = !item.contains(",") && io.orderStock(input(block, 2, io), item + "=" + count);
+				lastOrder = io.orderStock(input(block, 2, io), List.of(new OrderEntry(item, count)));
 			}
-			case ORDER_BATCH -> lastOrder = io.orderStock(input(block, 1, io), input(block, 0, io));
+			case ORDER_BATCH -> lastOrder = io.orderStock(input(block, 1, io), orderEntries((Block) block.inputs().getFirst(), io));
 			default -> throw new IllegalStateException("Expected a computer command: " + block.op());
 		}
 	}
@@ -364,6 +369,7 @@ public final class ComputerRuntime {
 		evalBudget--;
 		return switch (block.op()) {
 			case VARIABLE -> variables.getOrDefault(input(block, 0, io).strip(), "0");
+			case ITEM_ID -> itemId(block);
 			case ADD -> format(number(input(block, 0, io)) + number(input(block, 1, io)));
 			case SUBTRACT -> format(number(input(block, 0, io)) - number(input(block, 1, io)));
 			case MULTIPLY -> format(number(input(block, 0, io)) * number(input(block, 1, io)));
@@ -474,13 +480,38 @@ public final class ComputerRuntime {
 			case FALLING_EDGE -> Boolean.toString((falling & (1 << channel(block, io).ordinal())) != 0);
 			case READ_INPUT -> io.readInputSlot(slot(block, io));
 			case TIMER -> format(Math.max(0L, io.gameTick() - timerStartTick) / 20.0);
-			case STOCK_COUNT -> Long.toString(io.stockCount(input(block, 0, io)));
-			case HAS_STOCK -> Boolean.toString(io.stockCount(input(block, 0, io)) >= number(input(block, 1, io)));
+			case STOCK_COUNT -> Long.toString(io.stockCount(stockFilters((Block) block.inputs().getFirst(), io)));
+			case HAS_STOCK -> Boolean.toString(io.stockCount(stockFilters((Block) block.inputs().getFirst(), io))
+				>= number(input(block, 1, io)));
 			case STOCK_TOTAL -> Long.toString(io.stockTotal());
 			case STOCK_TYPES -> Integer.toString(io.stockTypes());
 			case LAST_ORDER -> Boolean.toString(lastOrder);
 			default -> throw new IllegalStateException("Expected a computer reporter: " + block.op());
 		};
+	}
+
+	private List<String> stockFilters(Block list, ComputerIO io) {
+		List<String> filters = new ArrayList<>(list.inputs().size());
+		for (int i = 0; i < list.inputs().size(); i++) {
+			String filter = collectionInput(list, i, io).strip();
+			if (!filter.isEmpty())
+				filters.add(filter);
+		}
+		return filters;
+	}
+
+	private List<OrderEntry> orderEntries(Block list, ComputerIO io) {
+		List<OrderEntry> entries = new ArrayList<>(list.inputs().size() / 2);
+		for (int i = 0; i < list.inputs().size(); i += 2) {
+			String item = collectionInput(list, i, io).strip();
+			if (!item.isEmpty())
+				entries.add(new OrderEntry(item, Math.round(number(collectionInput(list, i + 1, io)))));
+		}
+		return entries;
+	}
+
+	private String collectionInput(Block collection, int index, ComputerIO io) {
+		return index >= 0 && index < collection.inputs().size() ? input(collection, index, io) : "";
 	}
 
 	private boolean condition(Block block, int index, ComputerIO io) {
@@ -500,7 +531,14 @@ public final class ComputerRuntime {
 	}
 
 	private static String declarationName(Block block) {
-		return ((Literal) block.inputs().getFirst()).text().strip();
+		return switch (block.inputs().getFirst()) {
+			case Literal literal -> literal.text().strip();
+			case Block item -> itemId(item).strip();
+		};
+	}
+
+	private static String itemId(Block block) {
+		return ((Literal) block.inputs().getFirst()).text();
 	}
 
 	private static int seconds(double value) {

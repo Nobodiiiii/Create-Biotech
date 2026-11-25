@@ -3,16 +3,20 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalRadialLayout.ICON_OFFSET;
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalRadialLayout.SLOT_HALF_SIZE;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.client.CBKeyMappings;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitBlockEntity;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitSelectionPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointSelectionPacket;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
+import com.simibubi.create.foundation.gui.AllIcons;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.gui.AbstractSimiScreen;
@@ -29,8 +33,14 @@ import net.minecraft.world.item.ItemStack;
 
 /** Shared toolbox-styled wheel for surgical tools and joint types. */
 public class SurgicalKitRadialScreen extends AbstractSimiScreen {
+	private static final int STOW_X = 84;
+	private static final Component STOW = Component.translatable("item.create_biotech.surgical_kit.stow");
+
 	private final InteractionHand hand;
 	private final Item kitItem;
+	@Nullable
+	private final SurgicalKitBlockEntity placedKit;
+	private final boolean showKeyHint;
 	private final SurgicalKitItem.Tool[] tools;
 	private final ItemStack[] options;
 	private final Component[] names;
@@ -41,7 +51,18 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	private boolean committed;
 
 	public SurgicalKitRadialScreen(InteractionHand hand, ItemStack stack) {
+		this(hand, stack, null, true);
+	}
+
+	public SurgicalKitRadialScreen(SurgicalKitBlockEntity placedKit, boolean showKeyHint) {
+		this(InteractionHand.MAIN_HAND, new ItemStack(placedKit.getBlockState().getBlock()), placedKit, showKeyHint);
+	}
+
+	private SurgicalKitRadialScreen(InteractionHand hand, ItemStack stack,
+		@Nullable SurgicalKitBlockEntity placedKit, boolean showKeyHint) {
 		this.hand = hand;
+		this.placedKit = placedKit;
+		this.showKeyHint = showKeyHint;
 		kitItem = stack.getItem();
 		jointWheel = SurgicalJointItem.canSelect(stack);
 		hotbarSlot = Minecraft.getInstance().player.getInventory().selected;
@@ -58,9 +79,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	protected void renderWindow(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		float fade = Mth.clamp((ticksOpen + AnimationTickHolder.getPartialTicks()) / 8.0f,
 			1.0f / 512.0f, 1.0f);
-		double relativeX = mouseX - width / 2.0d;
-		double relativeY = mouseY - height / 2.0d;
-		hoveredSlot = SurgicalRadialLayout.hoveredSlot(relativeX, relativeY, options.length);
+		hoveredSlot = hoveredSlot(mouseX, mouseY);
 
 		PoseStack poseStack = graphics.pose();
 		poseStack.pushPose();
@@ -79,6 +98,12 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 			if (slot == hoveredSlot || hoveredSlot < 0 && slot == selectedSlot)
 				AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, x - 1, y - 1);
 		}
+		if (!jointWheel) {
+			AllGuiTextures.TOOLBELT_SLOT.render(graphics, STOW_X, -SLOT_HALF_SIZE);
+			AllIcons.I_DISABLE.render(graphics, STOW_X + ICON_OFFSET, -SLOT_HALF_SIZE + ICON_OFFSET);
+			if (hoveredSlot == options.length)
+				AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, STOW_X - 1, -SLOT_HALF_SIZE - 1);
+		}
 
 		AllGuiTextures.TOOLBELT_SLOT.render(graphics, -SLOT_HALF_SIZE, -SLOT_HALF_SIZE);
 		if (jointWheel && minecraft.player != null) {
@@ -90,14 +115,16 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 		}
 		poseStack.popPose();
 
-		Component tip = hoveredSlot >= 0
-			? names[hoveredSlot].copy().withStyle(ChatFormatting.GOLD)
-			: Component.translatable(jointWheel ? "item.create_biotech.surgical_joint.radial_hint"
+		Component tip = switch (hoveredSlot) {
+			case -1 -> showKeyHint
+				? Component.translatable(jointWheel ? "item.create_biotech.surgical_joint.radial_hint"
 				: "item.create_biotech.surgical_kit.radial_hint",
 				Component.keybind(SurgicalKitItem.OPEN_KEY_TRANSLATION))
-				.withStyle(ChatFormatting.GRAY);
+				.withStyle(ChatFormatting.GRAY) : null;
+			default -> (hoveredSlot == options.length ? STOW : names[hoveredSlot]).copy().withStyle(ChatFormatting.GOLD);
+		};
 		int alpha = Mth.clamp((int) (fade * 255.0f), 0, 255);
-		if (alpha > 8) {
+		if (tip != null && alpha > 8) {
 			RenderSystem.enableBlend();
 			RenderSystem.defaultBlendFunc();
 			int textWidth = font.width(tip);
@@ -117,7 +144,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	@Override
 	public void tick() {
 		ticksOpen++;
-		if (!stillHoldingItem()) {
+		if (!hasSource()) {
 			onClose();
 			return;
 		}
@@ -126,11 +153,10 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		double x = mouseX - width / 2.0d;
-		double y = mouseY - height / 2.0d;
-		hoveredSlot = SurgicalRadialLayout.hoveredSlot(x, y, options.length);
+		hoveredSlot = hoveredSlot(mouseX, mouseY);
 		if (button == 0 && hoveredSlot >= 0) {
-			commitAndClose();
+			commit();
+			onClose();
 			return true;
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
@@ -140,7 +166,11 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
 		InputConstants.Key key = InputConstants.getKey(keyCode, scanCode);
 		if (CBKeyMappings.isBoundKey(CBKeyMappings.SURGICAL_KIT, key)) {
-			commitAndClose();
+			commit();
+			minecraft.tell(() -> {
+				if (minecraft.screen == this)
+					onClose();
+			});
 			return true;
 		}
 		return super.keyReleased(keyCode, scanCode, modifiers);
@@ -151,25 +181,37 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 		return false;
 	}
 
-	private boolean stillHoldingItem() {
-		return minecraft.player != null && minecraft.player.getItemInHand(hand).is(kitItem)
-			&& (hand == InteractionHand.OFF_HAND || minecraft.player.getInventory().selected == hotbarSlot);
+	private int hoveredSlot(double mouseX, double mouseY) {
+		double x = mouseX - width / 2.0d;
+		double y = mouseY - height / 2.0d;
+		if (!jointWheel && x >= STOW_X && x < STOW_X + 2 * SLOT_HALF_SIZE
+			&& y >= -SLOT_HALF_SIZE && y < SLOT_HALF_SIZE)
+			return options.length;
+		return SurgicalRadialLayout.hoveredSlot(x, y, options.length);
 	}
 
-	private void commitAndClose() {
-		if (!committed && hoveredSlot >= 0 && stillHoldingItem()) {
-			ItemStack kit = minecraft.player.getItemInHand(hand);
-			if (jointWheel && SurgicalJointItem.canSelect(kit)) {
+	private boolean hasSource() {
+		if (minecraft.player == null || minecraft.player.isSpectator()
+			|| hand == InteractionHand.MAIN_HAND && minecraft.player.getInventory().selected != hotbarSlot)
+			return false;
+		return placedKit == null ? minecraft.player.getItemInHand(hand).is(kitItem) : placedKit.inRange(minecraft.player);
+	}
+
+	private void commit() {
+		if (!committed && hoveredSlot >= 0 && hasSource()) {
+			ItemStack held = minecraft.player.getItemInHand(hand);
+			if (jointWheel && SurgicalJointItem.canSelect(held)) {
 				var type = SurgicalJointItem.TYPES.get(hoveredSlot);
-				SurgicalJointItem.select(kit, type);
+				SurgicalJointItem.select(held, type);
 				CBPackets.sendToServer(new SurgicalJointSelectionPacket(hand, hotbarSlot, type));
-			} else if (SurgicalKitItem.isKit(kit)) {
-				SurgicalKitItem.Tool selected = tools[hoveredSlot];
-				SurgicalKitItem.setSelectedTool(kit, selected);
-				CBPackets.sendToServer(new SurgicalKitSelectionPacket(hand, selected));
+			} else if (!jointWheel) {
+				SurgicalKitItem.Tool selected = hoveredSlot == options.length ? null : tools[hoveredSlot];
+				if (placedKit == null)
+					SurgicalKitItem.setSelectedTool(held, selected);
+				CBPackets.sendToServer(new SurgicalKitSelectionPacket(hand, hotbarSlot,
+					placedKit == null ? null : placedKit.getBlockPos(), selected));
 			}
 		}
 		committed = true;
-		onClose();
 	}
 }

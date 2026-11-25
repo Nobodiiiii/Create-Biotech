@@ -34,6 +34,7 @@ import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOp
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.data.Iterate;
+import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -91,8 +92,13 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		super.addBehaviours(behaviours);
 		selectionMode = new ScrollOptionBehaviour<>(ArmBlockEntity.SelectionMode.class,
 			CreateLang.translateDirect("logistics.when_multiple_outputs_available"), this,
-			new CenteredSideValueBoxTransform((state, side) -> !side.getAxis()
-				.isVertical()));
+			new CenteredSideValueBoxTransform((state, side) -> side.getAxis().isHorizontal()) {
+				@Override
+				protected Vec3 getSouthLocation() {
+					// Half the height of Create's scaled six-pixel outline.
+					return VecHelper.voxelSpace(8, 3.015, 15.5);
+				}
+			});
 		behaviours.add(selectionMode);
 	}
 

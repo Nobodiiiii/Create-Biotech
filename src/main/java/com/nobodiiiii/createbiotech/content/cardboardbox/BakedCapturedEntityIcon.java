@@ -58,8 +58,12 @@ final class BakedCapturedEntityIcon {
 		this.attributes = attributes;
 	}
 
+	boolean isEmpty() {
+		return renderTypes.length == 0;
+	}
+
 	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		if (renderTypes.length == 0)
+		if (isEmpty())
 			return;
 
 		PoseStack.Pose pose = poseStack.last();

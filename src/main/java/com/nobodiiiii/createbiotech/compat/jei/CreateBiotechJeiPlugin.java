@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ComputerScratchScreen;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
@@ -34,6 +35,7 @@ import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
 import mezz.jei.api.registration.IAdvancedRegistration;
+import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
@@ -111,6 +113,11 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	@Override
 	public void registerAdvanced(IAdvancedRegistration registration) {
 		registration.addTypedRecipeManagerPlugin(BionicTraitJeiCategory.TYPE, new BionicTraitRecipeManagerPlugin());
+	}
+
+	@Override
+	public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+		registration.addGhostIngredientHandler(ComputerScratchScreen.class, new ComputerGhostIngredientHandler());
 	}
 
 	@Override

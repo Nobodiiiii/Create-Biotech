@@ -19,6 +19,8 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -37,19 +39,30 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 		computer = null;
 		viewer = null;
 		programState = new ProgramState(buffer);
+		addInventorySamples(inventory);
 	}
 
-	private ComputerProgramMenu(int id, ServerPlayer viewer, ComputerBlockEntity computer, ProgramState programState) {
+	private ComputerProgramMenu(int id, Inventory inventory, ServerPlayer viewer, ComputerBlockEntity computer, ProgramState programState) {
 		super(CBMenuTypes.COMPUTER_PROGRAM.get(), id);
 		this.viewer = viewer;
 		this.computer = computer;
 		this.programState = programState;
+		addInventorySamples(inventory);
 	}
 
 	static void open(ServerPlayer player, ComputerBlockEntity computer) {
 		ProgramState state = programsOf(computer);
-		player.openMenu(new SimpleMenuProvider((id, inventory, owner) -> new ComputerProgramMenu(id, player, computer, state),
+		player.openMenu(new SimpleMenuProvider((id, inventory, owner) -> new ComputerProgramMenu(id, inventory, player, computer, state),
 			computer.getBlockState().getBlock().getName()), state::write);
+	}
+
+	private void addInventorySamples(Inventory inventory) {
+		// Sync the player's inventory while this menu is open. The screen renders the slots in its inventory tab.
+		for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+			addSlot(new Slot(inventory, i, 0, 0) {
+				@Override public boolean isActive() { return false; }
+			});
+		}
 	}
 
 	private static ProgramState programsOf(ComputerBlockEntity computer) {
@@ -145,4 +158,9 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 
 	@Override
 	public ItemStack quickMoveStack(Player player, int index) { return ItemStack.EMPTY; }
+
+	@Override
+	public void clicked(int slotId, int button, ClickType clickType, Player player) {
+		// The inventory slots only provide samples for the editor.
+	}
 }

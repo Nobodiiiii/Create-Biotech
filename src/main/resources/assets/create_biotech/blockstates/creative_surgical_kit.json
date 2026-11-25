@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "create_biotech:block/creative_surgical_kit"
+    },
+    "facing=east": {
+      "model": "create_biotech:block/creative_surgical_kit",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "create_biotech:block/creative_surgical_kit",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "create_biotech:block/creative_surgical_kit",
+      "y": 270
+    }
+  }
+}

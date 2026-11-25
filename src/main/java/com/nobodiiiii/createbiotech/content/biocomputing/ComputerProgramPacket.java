@@ -91,7 +91,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 
 			buffer.writeVarInt(snapshot.variables().size());
 			for (Variable variable : snapshot.variables()) {
-				buffer.writeUtf(variable.name(), ComputerProgram.MAX_LITERAL_LENGTH);
+				buffer.writeUtf(variable.name(), ComputerProgram.MAX_ITEM_LITERAL_LENGTH);
 				buffer.writeUtf(variable.value(), ComputerRuntime.MAX_VALUE_LENGTH);
 			}
 
@@ -120,7 +120,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			int variableCount = ComputerProgramWire.readCount(buffer, ComputerRuntime.MAX_VARIABLES);
 			List<Variable> variables = new ArrayList<>(variableCount);
 			for (int i = 0; i < variableCount; i++)
-				variables.add(new Variable(buffer.readUtf(ComputerProgram.MAX_LITERAL_LENGTH),
+				variables.add(new Variable(buffer.readUtf(ComputerProgram.MAX_ITEM_LITERAL_LENGTH),
 					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH)));
 
 			List<ChannelState> channels = new ArrayList<>(Channel.VALUES.length);

@@ -77,8 +77,8 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
-		public void tuneRedstone(Channel channel, String first, String second) {
-			if (wireless.tune(channel, first, second))
+		public void tuneRedstone(Channel channel, FrequencyPair frequency) {
+			if (wireless.tune(channel, frequency))
 				markIoChanged();
 		}
 
@@ -128,8 +128,8 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
-		public long stockCount(String filter) {
-			return library().includesLogistics() ? logistics.count(filter.strip()) : 0;
+		public long stockCount(List<String> filters) {
+			return library().includesLogistics() ? logistics.count(filters) : 0;
 		}
 
 		@Override
@@ -143,7 +143,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
-		public boolean orderStock(String address, String items) {
+		public boolean orderStock(String address, List<OrderEntry> items) {
 			return library().includesLogistics()
 				&& logistics.order(address.strip(), items, currentGameTick(), ComputerBlockEntity.this::setChanged);
 		}

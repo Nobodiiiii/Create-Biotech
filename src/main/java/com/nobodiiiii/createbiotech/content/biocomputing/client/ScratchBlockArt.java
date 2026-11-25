@@ -54,17 +54,19 @@ final class ScratchBlockArt {
 		};
 	}
 
-	static void draw(GuiGraphics graphics, ScratchCanvas.Rect box, Category category, Region region) {
+	static ScratchCanvas.Rect paintedBounds(ScratchCanvas.Rect box, Region region) {
 		int overlap = region == Region.MIDDLE ? 2 : 0;
-		int totalWidth = box.width() + 2;
-		int totalHeight = box.height() + region.tab + 2 + overlap;
-		int left = Math.min(region.left, Math.max(0, totalWidth - region.right - 1));
-		int right = Math.min(region.right, totalWidth - left - 1);
-		int top = Math.min(region.top, totalHeight - region.bottom - 1);
-		int x = box.x() - 1;
-		int y = box.y() - 1 - overlap;
-		int[] xs = {x, x + left, x + totalWidth - right, x + totalWidth};
-		int[] ys = {y, y + top, y + totalHeight - region.bottom, y + totalHeight};
+		return new ScratchCanvas.Rect(box.x() - 1, box.y() - 1 - overlap, box.width() + 2,
+			box.height() + region.tab + 2 + overlap);
+	}
+
+	static void draw(GuiGraphics graphics, ScratchCanvas.Rect box, Category category, Region region) {
+		ScratchCanvas.Rect bounds = paintedBounds(box, region);
+		int left = Math.min(region.left, Math.max(0, bounds.width() - region.right - 1));
+		int right = Math.min(region.right, bounds.width() - left - 1);
+		int top = Math.min(region.top, bounds.height() - region.bottom - 1);
+		int[] xs = {bounds.x(), bounds.x() + left, bounds.right() - right, bounds.right()};
+		int[] ys = {bounds.y(), bounds.y() + top, bounds.bottom() - region.bottom, bounds.bottom()};
 		int u = region.column * STRIDE_X;
 		int v = row(category) * STRIDE_Y;
 		int[] us = {u, u + region.left, u + region.width - region.right, u + region.width};

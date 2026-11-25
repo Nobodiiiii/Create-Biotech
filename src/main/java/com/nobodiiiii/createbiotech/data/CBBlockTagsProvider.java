@@ -34,6 +34,8 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.SCHRODINGERS_CAT.get(),
 			CBBlocks.SPIDER_ASSEMBLY_TABLE.get(),
 			CBBlocks.SPIDER_ASSEMBLY_TABLE_COG.get(),
+			CBBlocks.SURGICAL_KIT.get(),
+			CBBlocks.CREATIVE_SURGICAL_KIT.get(),
 			CBBlocks.GREENPRINT_TABLE.get(),
 			CBBlocks.ASURINE_CASING.get(),
 			CBBlocks.BIOTECH_CASING.get());

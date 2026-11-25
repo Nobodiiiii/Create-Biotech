@@ -34,14 +34,18 @@ final class ComputerProgramWire {
 	}
 
 	private static void writeBlock(FriendlyByteBuf buffer, Block block) {
-		buffer.writeEnum(block.op());
-		for (Input input : block.inputs()) {
+		Op op = block.op();
+		buffer.writeEnum(op);
+		if (op.isCollection())
+			buffer.writeVarInt(block.inputs().size());
+		for (int i = 0; i < block.inputs().size(); i++) {
+			Input input = block.inputs().get(i);
 			if (input instanceof Block reporter) {
 				buffer.writeBoolean(true);
 				writeBlock(buffer, reporter);
 			} else {
 				buffer.writeBoolean(false);
-				buffer.writeUtf(((Literal) input).text(), ComputerProgram.MAX_LITERAL_LENGTH);
+				buffer.writeUtf(((Literal) input).text(), op.slot(i).maxLiteralLength());
 			}
 		}
 		for (List<Block> body : block.bodies())
@@ -75,10 +79,13 @@ final class ComputerProgramWire {
 			if (depth > ComputerProgram.MAX_DEPTH || remaining-- <= 0)
 				throw new DecoderException("Computer program exceeds its block or nesting limit");
 			Op op = buffer.readEnum(Op.class);
-			List<Input> inputs = new ArrayList<>(op.slots().size());
-			for (int i = 0; i < op.slots().size(); i++) {
+			int inputCount = op.isCollection() ? readCount(buffer, op.maxInputs()) : op.slots().size();
+			if (!op.acceptsInputCount(inputCount))
+				throw new DecoderException("Mismatched computer inputs for " + op);
+			List<Input> inputs = new ArrayList<>(inputCount);
+			for (int i = 0; i < inputCount; i++) {
 				inputs.add(buffer.readBoolean() ? block(depth + 1)
-					: new Literal(buffer.readUtf(ComputerProgram.MAX_LITERAL_LENGTH)));
+					: new Literal(buffer.readUtf(op.slot(i).maxLiteralLength())));
 			}
 			List<List<Block>> bodies = new ArrayList<>(op.bodyCount());
 			for (int i = 0; i < op.bodyCount(); i++)

@@ -43,6 +43,7 @@ import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlock;
 import com.nobodiiiii.createbiotech.content.slimeculturechamber.SlimeCultureChamberBlock;
 import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableBlock;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlock;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitBlock;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
 import com.nobodiiiii.createbiotech.content.tablecloth.CBTableClothBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
@@ -185,6 +186,13 @@ public class CBBlocks {
 			.sound(SoundType.METAL)
 			.mapColor(MapColor.COLOR_LIGHT_BLUE)
 			.noOcclusion()));
+
+	public static final DeferredHolder<Block, SurgicalKitBlock> SURGICAL_KIT = BLOCKS.register("surgical_kit",
+		() -> new SurgicalKitBlock(CBSharedProperties.createWooden().mapColor(MapColor.COLOR_LIGHT_BLUE).noOcclusion()));
+
+	public static final DeferredHolder<Block, SurgicalKitBlock> CREATIVE_SURGICAL_KIT =
+		BLOCKS.register("creative_surgical_kit",
+			() -> new SurgicalKitBlock(CBSharedProperties.createWooden().mapColor(MapColor.COLOR_PURPLE).noOcclusion()));
 
 	public static final DeferredHolder<Block, GreenprintTableBlock> GREENPRINT_TABLE = BLOCKS.register("greenprint_table",
 		() -> new GreenprintTableBlock(CBSharedProperties.createWooden()

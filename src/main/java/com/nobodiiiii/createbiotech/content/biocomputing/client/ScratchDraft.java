@@ -102,6 +102,29 @@ final class ScratchDraft {
 		revision++;
 	}
 
+	void editCollection(Tile list, int row) {
+		int rowSize = list.op.slots().size();
+		if (!list.op.isCollection() || (row < 0 ? list.fields.size() >= list.op.maxInputs() : row >= list.fields.size() / rowSize))
+			return;
+		recordUndo();
+		if (row < 0) {
+			for (int i = 0; i < rowSize; i++)
+				list.fields.add(listField(list.op.slot(i), list.itemRows && i == 0, list.itemColorRows));
+		} else {
+			list.fields.subList(row * rowSize, (row + 1) * rowSize).clear();
+		}
+		revision++;
+	}
+
+	private static Field listField(Slot slot, boolean itemRow, boolean itemColor) {
+		Field field = new Field(slot);
+		if (itemRow) {
+			field.reporter = Tile.create(Op.ITEM_ID, false);
+			field.reporter.fields.getFirst().includeItemColor = itemColor;
+		}
+		return field;
+	}
+
 	private void load(ComputerProgram program) {
 		commands.clear();
 		for (Block block : program.commands())
@@ -149,21 +172,56 @@ final class ScratchDraft {
 		final Op op;
 		final List<Field> fields;
 		final List<List<Tile>> bodies = new ArrayList<>();
+		boolean itemRows;
+		boolean itemColorRows;
 
-		Tile(Op op) {
+		private Tile(Op op, int inputCount) {
 			this.op = op;
-			fields = op.slots().stream().map(Field::new).toList();
+			fields = new ArrayList<>(inputCount);
+			for (int i = 0; i < inputCount; i++)
+				fields.add(new Field(op.slot(i)));
 			for (int i = 0; i < op.bodyCount(); i++)
 				bodies.add(new ArrayList<>());
 		}
 
+		static Tile create(Op op, boolean withItemId) {
+			return create(op, withItemId, op.slots().size());
+		}
+
+		static Tile create(Op op, boolean withItemId, int inputCount) {
+			Tile tile = new Tile(op, inputCount);
+			tile.itemRows = op.isCollection() && withItemId;
+			for (Field field : tile.fields) {
+				Op reporter = field.slot.socket().requiredStructure();
+				if (reporter == null && withItemId && field.slot.itemAlternative())
+					reporter = Op.ITEM_ID;
+				if (reporter != null) {
+					int rows = reporter.isCollection() && (op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY) ? 2 : 1;
+					field.reporter = create(reporter, true, reporter.slots().size() * rows);
+				field.reporter.itemColorRows = op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY;
+				if (field.reporter.itemColorRows)
+					field.reporter.fields.stream().filter(row -> row.reporter != null)
+						.forEach(row -> row.reporter.fields.getFirst().includeItemColor = true);
+				}
+			}
+			return tile;
+		}
+
 		Tile(Block block) {
-			this(block.op());
+			this(block.op(), block.inputs().size());
+			itemRows = block.op().isCollection() && !block.inputs().isEmpty()
+				&& block.inputs().getFirst() instanceof Block first && first.op() == Op.ITEM_ID;
 			for (int i = 0; i < fields.size(); i++) {
 				Field field = fields.get(i);
 				switch (block.inputs().get(i)) {
 					case Literal literal -> field.literal = literal.text();
 					case Block reporter -> field.reporter = new Tile(reporter);
+				}
+				if (field.reporter != null && (block.op() == Op.BIND_FREQUENCY || block.op() == Op.TUNE_FREQUENCY)) {
+					field.reporter.itemRows = true;
+					field.reporter.itemColorRows = true;
+					field.reporter.fields.stream().filter(row -> row.reporter != null)
+						.forEach(row -> row.reporter.fields.getFirst().includeItemColor = true);
 				}
 			}
 			for (int i = 0; i < bodies.size(); i++)
@@ -195,6 +253,7 @@ final class ScratchDraft {
 		final Slot slot;
 		String literal;
 		Tile reporter;
+		boolean includeItemColor;
 
 		Field(Slot slot) {
 			this.slot = slot;
@@ -219,8 +278,18 @@ final class ScratchDraft {
 	}
 
 	record ReporterPoint(Tile owner, Field field, int depth) implements Location {
-		@Override public boolean accepts(Tile tile) { return field.slot.socket().accepts(tile.op.shape()); }
+		@Override public boolean accepts(Tile tile) { return field.slot.socket().accepts(tile.op); }
 		@Override public void insert(Tile tile) { field.reporter = tile; }
-		@Override public void remove() { field.reporter = null; }
+
+		@Override
+		public void remove() {
+			Tile reporter = field.reporter;
+			if (reporter != null && reporter.op == Op.ITEM_ID && field.slot.itemAlternative()) {
+				String text = reporter.fields.getFirst().literal;
+				if (text.length() <= field.slot.maxLiteralLength())
+					field.literal = text;
+			}
+			field.reporter = null;
+		}
 	}
 }

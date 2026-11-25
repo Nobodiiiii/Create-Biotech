@@ -16,6 +16,9 @@ public record ComputerProgram(List<Block> commands) {
 	public static final int MAX_BLOCKS = 128;
 	public static final int MAX_DEPTH = 10;
 	public static final int MAX_LITERAL_LENGTH = 48;
+	public static final int MAX_COLLECTION_ROWS = 8;
+	static final int MAX_ITEM_LITERAL_LENGTH = ComputerRuntime.MAX_VALUE_LENGTH;
+	private static final String EXAMPLE_ITEM = "minecraft:iron_ingot";
 	public static final ComputerProgram EMPTY = new ComputerProgram(List.of());
 
 	public ComputerProgram {
@@ -95,7 +98,7 @@ public record ComputerProgram(List<Block> commands) {
 
 	public record Literal(String text) implements Input {
 		public Literal {
-			if (text == null || text.length() > MAX_LITERAL_LENGTH)
+			if (text == null || text.length() > MAX_ITEM_LITERAL_LENGTH)
 				throw new IllegalArgumentException("Computer literal is invalid or too long");
 		}
 	}
@@ -106,16 +109,21 @@ public record ComputerProgram(List<Block> commands) {
 				throw new IllegalArgumentException("Computer block op cannot be null");
 			inputs = List.copyOf(inputs);
 			bodies = bodies.stream().map(List::copyOf).toList();
-			if (inputs.size() != op.slots().size() || bodies.size() != op.bodyCount())
+			if (!op.acceptsInputCount(inputs.size()) || bodies.size() != op.bodyCount())
 				throw new IllegalArgumentException("Incorrect inputs or bodies for " + op);
 			for (int i = 0; i < inputs.size(); i++) {
-				Socket socket = op.slots().get(i).socket();
+				Slot slot = op.slot(i);
+				Socket socket = slot.socket();
 				switch (inputs.get(i)) {
 					case Block reporter -> {
-						if (!socket.accepts(reporter.op().shape()))
+						if (!socket.accepts(reporter.op()))
 							throw new IllegalArgumentException("Incompatible reporter for " + op);
 					}
 					case Literal literal -> {
+						if (socket.requiredStructure() != null)
+							throw new IllegalArgumentException("Expected structured input for " + op);
+						if (literal.text().length() > slot.maxLiteralLength())
+							throw new IllegalArgumentException("Computer literal is too long for " + op);
 						if (socket == Socket.CONDITION && !literal.text().equals("true") && !literal.text().equals("false"))
 							throw new IllegalArgumentException("A condition requires true or false");
 						if (socket == Socket.CHANNEL) {
@@ -162,13 +170,33 @@ public record ComputerProgram(List<Block> commands) {
 	public enum Shape { COMMAND, REPORTER, BOOLEAN }
 
 	public enum Socket {
-		VALUE, CONDITION, NAME, CHANNEL, SLOT;
+		VALUE, CONDITION, NAME, CHANNEL, SLOT, LITERAL, LIST, MAP;
 
 		public boolean accepts(Shape shape) {
 			return switch (this) {
 				case VALUE -> shape != Shape.COMMAND;
 				case CONDITION -> shape == Shape.BOOLEAN;
-				case NAME, CHANNEL, SLOT -> false;
+				case NAME, CHANNEL, SLOT, LITERAL, LIST, MAP -> false;
+			};
+		}
+
+		public boolean accepts(Op reporter) {
+			Op structure = requiredStructure();
+			if (structure != null)
+				return reporter == structure;
+			return this == NAME ? reporter == Op.ITEM_ID : !reporter.isStructuredData() && accepts(reporter.shape());
+		}
+
+		public boolean acceptsReporter() {
+			return requiredStructure() != null || this == NAME || accepts(Shape.REPORTER) || accepts(Shape.BOOLEAN);
+		}
+
+		@Nullable
+		public Op requiredStructure() {
+			return switch (this) {
+				case LIST -> Op.LIST;
+				case MAP -> Op.MAP;
+				default -> null;
 			};
 		}
 
@@ -177,7 +205,13 @@ public record ComputerProgram(List<Block> commands) {
 		}
 	}
 
-	public record Slot(Socket socket, String initial) {}
+	public enum ItemInput { NONE, ID }
+
+	public record Slot(Socket socket, String initial, ItemInput itemInput, boolean itemAlternative, int maxLiteralLength) {
+		public Slot(Socket socket, String initial) {
+			this(socket, initial, ItemInput.NONE, false, MAX_LITERAL_LENGTH);
+		}
+	}
 
 	public enum Op {
 		DEFINE_PROCEDURE(Category.EVENTS, 1, name("procedure")),
@@ -202,7 +236,7 @@ public record ComputerProgram(List<Block> commands) {
 
 		ADD(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
 		SUBTRACT(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
-		EQUALS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("0")),
+		EQUALS(Category.OPERATORS, Shape.BOOLEAN, value("0"), itemChoice(Socket.VALUE, "0")),
 		LESS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("1")),
 		GREATER(Category.OPERATORS, Shape.BOOLEAN, value("1"), value("0")),
 		NOT(Category.OPERATORS, Shape.BOOLEAN, condition()),
@@ -241,22 +275,22 @@ public record ComputerProgram(List<Block> commands) {
 		FORMAT_NUMBER(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("2")),
 		PROGRESS_BAR(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("100"), value("10")),
 
-		SET(Category.VARIABLES, 0, variable(), value("0")),
-		CHANGE(Category.VARIABLES, 0, variable(), value("1")),
-		VARIABLE(Category.VARIABLES, Shape.REPORTER, variable()),
+		SET(Category.VARIABLES, 0, name("count"), value("0")),
+		CHANGE(Category.VARIABLES, 0, name("count"), value("1")),
+		VARIABLE(Category.VARIABLES, Shape.REPORTER, name("count")),
 		TOGGLE(SIGNAL, Category.VARIABLES, 0, variable()),
 		LATCH(SIGNAL, Category.VARIABLES, 0, variable(), condition()),
 		SPLIT_TEXT(TEXT, Category.VARIABLES, 0, value("a,b,c"), value(","), name("list")),
-		LIST_ADD(TEXT, Category.VARIABLES, 0, name("list"), value("")),
+		LIST_ADD(TEXT, Category.VARIABLES, 0, name("list"), itemChoice(Socket.VALUE, "")),
 		LIST_REMOVE(TEXT, Category.VARIABLES, 0, name("list"), value("1")),
 		LIST_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value("1")),
-		LIST_SET(TEXT, Category.VARIABLES, 0, name("list"), value("1"), value("")),
+		LIST_SET(TEXT, Category.VARIABLES, 0, name("list"), value("1"), itemChoice(Socket.VALUE, "")),
 		LIST_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("list")),
 		LIST_JOIN(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value(",")),
-		MAP_SET(TEXT, Category.VARIABLES, 0, name("map"), value("key"), value("")),
-		MAP_REMOVE(TEXT, Category.VARIABLES, 0, name("map"), value("key")),
-		MAP_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("map"), value("key")),
-		MAP_HAS(TEXT, Category.VARIABLES, Shape.BOOLEAN, name("map"), value("key")),
+		MAP_SET(TEXT, Category.VARIABLES, 0, name("map"), itemChoice(Socket.VALUE, "key"), value("")),
+		MAP_REMOVE(TEXT, Category.VARIABLES, 0, name("map"), itemChoice(Socket.VALUE, "key")),
+		MAP_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("map"), itemChoice(Socket.VALUE, "key")),
+		MAP_HAS(TEXT, Category.VARIABLES, Shape.BOOLEAN, name("map"), itemChoice(Socket.VALUE, "key")),
 		MAP_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("map")),
 
 		HAS_REDSTONE(Category.SENSING, Shape.BOOLEAN, channel()),
@@ -265,24 +299,28 @@ public record ComputerProgram(List<Block> commands) {
 		RISING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
 		FALLING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
 		TIMER(TIMING, Category.SENSING, Shape.REPORTER),
-		STOCK_COUNT(LOGISTICS, Category.SENSING, Shape.REPORTER, value("minecraft:iron_ingot")),
-		HAS_STOCK(LOGISTICS, Category.SENSING, Shape.BOOLEAN, value("minecraft:iron_ingot"), value("1")),
+		STOCK_COUNT(LOGISTICS, Category.SENSING, Shape.REPORTER, new Slot(Socket.LIST, "")),
+		HAS_STOCK(LOGISTICS, Category.SENSING, Shape.BOOLEAN, new Slot(Socket.LIST, ""), value("1")),
 		STOCK_TOTAL(LOGISTICS, Category.SENSING, Shape.REPORTER),
 		STOCK_TYPES(LOGISTICS, Category.SENSING, Shape.REPORTER),
 		LAST_ORDER(LOGISTICS, Category.SENSING, Shape.BOOLEAN),
 
-		BIND_FREQUENCY(Category.OUTPUT, 0, channel(), name("minecraft:redstone"), name("minecraft:stick")),
+		BIND_FREQUENCY(Category.OUTPUT, 0, channel(), new Slot(Socket.LIST, "")),
 		SEND_REDSTONE(Category.OUTPUT, 0, channel(), condition()),
 		DISPLAY(Category.OUTPUT, 0, value("")),
 		CLEAR_OUTPUT(Category.OUTPUT, 0),
 		UPDATE_DISPLAY(Category.OUTPUT, 0),
 		SET_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15")),
-		TUNE_FREQUENCY(SIGNAL, Category.OUTPUT, 0, channel(), value("minecraft:redstone"), value("minecraft:stick")),
+		TUNE_FREQUENCY(SIGNAL, Category.OUTPUT, 0, channel(), new Slot(Socket.LIST, "")),
 		PULSE_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15"), value("10")),
 		SET_LINE(TEXT, Category.OUTPUT, 0, slot("1"), value("")),
 		RESET_TIMER(TIMING, Category.OUTPUT, 0),
-		ORDER_ITEM(LOGISTICS, Category.OUTPUT, 0, value("minecraft:iron_ingot"), value("1"), value("Workshop")),
-		ORDER_BATCH(LOGISTICS, Category.OUTPUT, 0, value("iron_ingot=2,stick=4"), value("Workshop"));
+		ORDER_ITEM(LOGISTICS, Category.OUTPUT, 0,
+			new Slot(Socket.VALUE, EXAMPLE_ITEM, ItemInput.NONE, true, MAX_ITEM_LITERAL_LENGTH), value("1"), value("Workshop")),
+		ORDER_BATCH(LOGISTICS, Category.OUTPUT, 0, new Slot(Socket.MAP, ""), value("Workshop")),
+		ITEM_ID(Category.SENSING, Shape.REPORTER, ingredient(Socket.LITERAL, ItemInput.ID, EXAMPLE_ITEM)),
+		LIST(Category.VARIABLES, Shape.REPORTER, itemChoice(Socket.VALUE, EXAMPLE_ITEM)),
+		MAP(Category.VARIABLES, Shape.REPORTER, itemChoice(Socket.VALUE, EXAMPLE_ITEM), value("1"));
 
 		private static final Map<String, Op> BY_KEY = buildKeyMap();
 
@@ -325,6 +363,30 @@ public record ComputerProgram(List<Block> commands) {
 		public List<Slot> slots() { return slots; }
 		public String key() { return key; }
 
+		public boolean isCollection() {
+			return this == LIST || this == MAP;
+		}
+
+		public boolean isInlineData() {
+			return this == ITEM_ID || isStructuredData();
+		}
+
+		public boolean isStructuredData() {
+			return isCollection();
+		}
+
+		public Slot slot(int index) {
+			return slots.get(isCollection() ? index % slots.size() : index);
+		}
+
+		public int maxInputs() {
+			return slots.size() * (isCollection() ? MAX_COLLECTION_ROWS : 1);
+		}
+
+		public boolean acceptsInputCount(int count) {
+			return isCollection() ? count >= 0 && count <= maxInputs() && count % slots.size() == 0 : count == slots.size();
+		}
+
 		public boolean isDeclaration() {
 			return switch (this) {
 				case DEFINE_PROCEDURE, WHEN_SIGNAL_CHANGED, WHEN_INPUT_CHANGED, ON_BROADCAST -> true;
@@ -345,6 +407,12 @@ public record ComputerProgram(List<Block> commands) {
 		}
 
 		private static Slot value(String initial) { return new Slot(Socket.VALUE, initial); }
+		private static Slot itemChoice(Socket socket, String initial) {
+			return new Slot(socket, initial, ItemInput.NONE, true, MAX_LITERAL_LENGTH);
+		}
+		private static Slot ingredient(Socket socket, ItemInput itemInput, String initial) {
+			return new Slot(socket, initial, itemInput, false, MAX_ITEM_LITERAL_LENGTH);
+		}
 		private static Slot condition() { return new Slot(Socket.CONDITION, "false"); }
 		private static Slot name(String initial) { return new Slot(Socket.NAME, initial); }
 		private static Slot variable() { return name("count"); }

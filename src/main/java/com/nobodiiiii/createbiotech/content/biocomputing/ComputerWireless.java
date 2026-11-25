@@ -8,6 +8,7 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.FrequencyPair;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.redstone.link.IRedstoneLinkable;
 import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler;
@@ -15,17 +16,14 @@ import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler.Freq
 
 import net.createmod.catnip.data.Couple;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.level.Level;
 
 final class ComputerWireless {
+	private static final FrequencyPair EMPTY_PAIR = new FrequencyPair("", "");
 	private final ComputerBlockEntity computer;
 	private final Radio[] radios = new Radio[Channel.VALUES.length];
 
@@ -44,20 +42,18 @@ final class ComputerWireless {
 		return radio.key != null && radio.setOutput(power, power == 0 || pulseTicks == 0 ? 0 : now + pulseTicks);
 	}
 
-	boolean tune(Channel channel, String first, String second) {
+	boolean tune(Channel channel, FrequencyPair requested) {
 		Radio radio = radios[channel.ordinal()];
-		String a = first.strip();
-		String b = second.strip();
-		if (a.length() > ComputerRuntime.MAX_VALUE_LENGTH || b.length() > ComputerRuntime.MAX_VALUE_LENGTH
-			|| (a.equals(radio.first) && b.equals(radio.second)))
+		FrequencyPair pair = new FrequencyPair(requested.first().strip(), requested.second().strip());
+		if (pair.first().length() > ComputerRuntime.MAX_VALUE_LENGTH || pair.second().length() > ComputerRuntime.MAX_VALUE_LENGTH
+			|| pair.equals(radio.frequency))
 			return false;
-		Frequency left = frequency(a);
-		Frequency right = frequency(b);
+		Frequency left = frequency(pair.first());
+		Frequency right = frequency(pair.second());
 		if (left == null || right == null)
 			return false;
 
-		radio.first = a;
-		radio.second = b;
+		radio.frequency = pair;
 		radio.key = left == Frequency.EMPTY && right == Frequency.EMPTY ? null : Couple.create(left, right);
 		if (radio.key == null)
 			radio.setOutput(0, 0);
@@ -107,7 +103,7 @@ final class ComputerWireless {
 	List<ComputerRuntime.ChannelState> snapshot() {
 		List<ComputerRuntime.ChannelState> states = new ArrayList<>(radios.length);
 		for (Radio radio : radios)
-			states.add(new ComputerRuntime.ChannelState(radio.first, radio.second, radio.input, radio.output));
+			states.add(new ComputerRuntime.ChannelState(radio.frequency.first(), radio.frequency.second(), radio.input, radio.output));
 		return states;
 	}
 
@@ -115,8 +111,8 @@ final class ComputerWireless {
 		ListTag list = new ListTag();
 		for (Radio radio : radios) {
 			CompoundTag tag = new CompoundTag();
-			tag.putString("First", radio.first);
-			tag.putString("Second", radio.second);
+			tag.putString("First", radio.frequency.first());
+			tag.putString("Second", radio.frequency.second());
 			// Pulses expire when unloaded. Steady outputs are restored on the next server tick.
 			tag.putInt("Power", radio.pulseUntil == 0 ? radio.output : 0);
 			list.add(tag);
@@ -128,12 +124,12 @@ final class ComputerWireless {
 		disconnect();
 		for (Channel channel : Channel.VALUES) {
 			Radio radio = radios[channel.ordinal()];
-			radio.first = radio.second = "";
+			radio.frequency = EMPTY_PAIR;
 			radio.key = null;
 			radio.input = 0;
 			radio.setOutput(0, 0);
 			CompoundTag tag = list.getCompound(channel.ordinal());
-			tune(channel, tag.getString("First"), tag.getString("Second"));
+			tune(channel, new FrequencyPair(tag.getString("First"), tag.getString("Second")));
 			if (radio.key != null)
 				radio.setOutput(Math.clamp(tag.getInt("Power"), 0, 15), 0);
 		}
@@ -143,24 +139,12 @@ final class ComputerWireless {
 	private static Frequency frequency(String text) {
 		if (text.isEmpty())
 			return Frequency.EMPTY;
-		int separator = text.indexOf('@');
-		ResourceLocation id = ResourceLocation.tryParse(separator < 0 ? text : text.substring(0, separator));
-		ItemStack stack = id == null ? ItemStack.EMPTY
-			: BuiltInRegistries.ITEM.getOptional(id).map(ItemStack::new).orElse(ItemStack.EMPTY);
-		if (stack.isEmpty())
-			return null;
-		if (separator >= 0) {
-			String rgb = text.substring(separator + 1);
-			if (rgb.length() != 6 || !rgb.chars().allMatch(c -> Character.digit(c, 16) >= 0))
-				return null;
-			stack.set(DataComponents.DYED_COLOR, new DyedItemColor(Integer.parseInt(rgb, 16), false));
-		}
-		return Frequency.of(stack);
+		ItemStack stack = ComputerItemReference.read(text, true);
+		return stack.isEmpty() ? null : Frequency.of(stack);
 	}
 
 	private final class Radio implements IRedstoneLinkable {
-		private String first = "";
-		private String second = "";
+		private FrequencyPair frequency = EMPTY_PAIR;
 		@Nullable
 		private Couple<Frequency> key;
 		@Nullable

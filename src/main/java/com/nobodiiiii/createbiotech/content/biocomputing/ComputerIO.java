@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.biocomputing;
 
+import java.util.List;
 import java.util.Locale;
 
 import org.jetbrains.annotations.Nullable;
@@ -13,7 +14,7 @@ public interface ComputerIO {
 
 	void writeRedstone(Channel channel, int power, int pulseTicks);
 
-	void tuneRedstone(Channel channel, String first, String second);
+	void tuneRedstone(Channel channel, FrequencyPair frequency);
 
 	String readInputSlot(int slotIndex);
 
@@ -25,15 +26,19 @@ public interface ComputerIO {
 
 	void updateDisplay();
 
-	long stockCount(String filter);
+	long stockCount(List<String> filters);
 
 	long stockTotal();
 
 	int stockTypes();
 
-	boolean orderStock(String address, String items);
+	boolean orderStock(String address, List<OrderEntry> items);
 
 	long gameTick();
+
+	record FrequencyPair(String first, String second) {}
+
+	record OrderEntry(String item, long count) {}
 
 	/** Numbered bindings to pairs of Create frequency items. */
 	enum Channel {

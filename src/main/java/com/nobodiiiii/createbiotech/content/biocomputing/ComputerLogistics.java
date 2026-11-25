@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.OrderEntry;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.BigItemStack;
 import com.simibubi.create.content.logistics.box.PackageItem;
@@ -61,24 +62,28 @@ final class ComputerLogistics {
 		this.operator = operator;
 	}
 
-	long count(String filter) {
-		if (filter.startsWith("#")) {
-			ResourceLocation id = ResourceLocation.tryParse(filter.substring(1));
-			if (id == null)
-				return 0;
-			TagKey<Item> tag = TagKey.create(Registries.ITEM, id);
-			return summary().getItemMap().values().stream().flatMap(List::stream)
-				.filter(entry -> entry.stack.is(tag)).mapToLong(ComputerLogistics::count).sum();
-		}
-
+	long count(List<String> filters) {
 		Set<Item> items = new HashSet<>();
-		for (String entry : filter.split(",")) {
-			Item item = item(entry);
-			if (item != null)
-				items.add(item);
+		Set<TagKey<Item>> tags = new HashSet<>();
+		for (String filter : filters) {
+			if (filter.startsWith("#")) {
+				ResourceLocation id = ResourceLocation.tryParse(filter.substring(1));
+				if (id != null)
+					tags.add(TagKey.create(Registries.ITEM, id));
+			} else {
+				Item item = item(filter);
+				if (item != null)
+					items.add(item);
+			}
 		}
-		InventorySummary inventory = summary();
-		return items.stream().flatMap(item -> inventory.getItemMap().getOrDefault(item, List.of()).stream())
+		if (items.isEmpty() && tags.isEmpty())
+			return 0;
+		var stock = summary().getItemMap();
+		if (tags.isEmpty())
+			return items.stream().flatMap(item -> stock.getOrDefault(item, List.of()).stream())
+				.mapToLong(ComputerLogistics::count).sum();
+		return stock.values().stream().flatMap(List::stream)
+			.filter(entry -> items.contains(entry.stack.getItem()) || tags.stream().anyMatch(entry.stack::is))
 			.mapToLong(ComputerLogistics::count).sum();
 	}
 
@@ -92,7 +97,7 @@ final class ComputerLogistics {
 			.filter(entries -> entries.stream().anyMatch(entry -> entry.count > 0)).count();
 	}
 
-	boolean order(String address, String items, long now, Runnable markChanged) {
+	boolean order(String address, List<OrderEntry> items, long now, Runnable markChanged) {
 		if (address.isBlank() || now < nextOrderTick || !mayUseNetwork())
 			return false;
 		List<BigItemStack> stacks = orderItems(items);
@@ -138,24 +143,17 @@ final class ComputerLogistics {
 		return id == null ? null : BuiltInRegistries.ITEM.getOptional(id).orElse(null);
 	}
 
-	private static List<BigItemStack> orderItems(String text) {
+	private static List<BigItemStack> orderItems(List<OrderEntry> entries) {
 		Map<Item, Integer> counts = new LinkedHashMap<>();
 		int total = 0;
-		for (String entry : text.split(",", -1)) {
-			int separator = entry.indexOf('=');
-			if (separator <= 0)
-				return List.of();
-			Item item = item(entry.substring(0, separator));
-			int amount;
-			try {
-				amount = Integer.parseInt(entry.substring(separator + 1).strip());
-			} catch (NumberFormatException invalidCount) {
-				return List.of();
-			}
+		for (OrderEntry entry : entries) {
+			Item item = item(entry.item());
+			long amount = entry.count();
 			if (item == null || item.getDefaultInstance().isEmpty() || amount <= 0 || amount > MAX_ORDER_ITEMS - total)
 				return List.of();
-			total += amount;
-			counts.merge(item, amount, Integer::sum);
+			int count = (int) amount;
+			total += count;
+			counts.merge(item, count, Integer::sum);
 		}
 		List<BigItemStack> items = new ArrayList<>(counts.size());
 		counts.forEach((item, amount) -> items.add(new BigItemStack(item.getDefaultInstance(), amount)));

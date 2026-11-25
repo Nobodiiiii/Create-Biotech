@@ -19,9 +19,9 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 /** Bounded clipboard JSON import/export for sharing Scratch programs. */
 public final class ComputerProgramJson {
 	private static final String FORMAT_ID = "create_biotech.scratch";
-	private static final int FORMAT_VERSION = 1;
-	// Blocks can contain multiple literals and JSON can escape each UTF-16 code unit as six characters.
-	private static final int MAX_JSON_LENGTH = 192 * 1024;
+	private static final int FORMAT_VERSION = 2;
+	// Allow a full program containing maximum-size order lists even when JSON escapes each code unit.
+	private static final int MAX_JSON_LENGTH = 576 * 1024;
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	private ComputerProgramJson() {}
@@ -114,20 +114,21 @@ public final class ComputerProgramJson {
 			if (op == null)
 				throw new IllegalArgumentException("Unknown op");
 
-			List<Input> inputs = new ArrayList<>(op.slots().size());
 			JsonElement inputsEl = obj.get("inputs");
-			if (op.slots().isEmpty()) {
-				if (inputsEl != null && (!inputsEl.isJsonArray() || !inputsEl.getAsJsonArray().isEmpty()))
-					throw new IllegalArgumentException("Unexpected inputs");
-			} else {
-				if (inputsEl == null || !inputsEl.isJsonArray() || inputsEl.getAsJsonArray().size() != op.slots().size())
-					throw new IllegalArgumentException("Mismatched input count");
-				for (JsonElement element : inputsEl.getAsJsonArray()) {
+			if (inputsEl != null && !inputsEl.isJsonArray())
+				throw new IllegalArgumentException("Expected input array");
+			JsonArray inputArray = inputsEl == null ? null : inputsEl.getAsJsonArray();
+			int inputCount = inputArray == null ? 0 : inputArray.size();
+			if (!op.acceptsInputCount(inputCount))
+				throw new IllegalArgumentException("Mismatched input count");
+			List<Input> inputs = new ArrayList<>(inputCount);
+			if (inputArray != null) {
+				for (JsonElement element : inputArray) {
 					if (element.isJsonObject()) {
 						inputs.add(block(element.getAsJsonObject(), depth + 1));
 					} else {
 						String literal = stringOrNull(element);
-						if (literal == null || literal.length() > ComputerProgram.MAX_LITERAL_LENGTH)
+						if (literal == null)
 							throw new IllegalArgumentException("Invalid literal");
 						inputs.add(new Literal(literal));
 					}
