@@ -5,6 +5,7 @@ import java.util.function.Supplier;
 import com.mojang.serialization.Codec;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierCargo;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalToolSource;
 
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -51,6 +52,11 @@ public final class CBDataComponents {
 		COMPONENTS.registerComponentType("sonic_dog_cannon_scope_folded",
 			builder -> builder.persistent(Codec.BOOL)
 				.networkSynchronized(ByteBufCodecs.BOOL));
+
+	public static final Supplier<DataComponentType<SurgicalToolSource>> SURGICAL_TOOL_SOURCE =
+		COMPONENTS.registerComponentType("surgical_tool_source",
+			builder -> builder.persistent(SurgicalToolSource.CODEC)
+				.networkSynchronized(SurgicalToolSource.STREAM_CODEC));
 
 	private CBDataComponents() {
 	}

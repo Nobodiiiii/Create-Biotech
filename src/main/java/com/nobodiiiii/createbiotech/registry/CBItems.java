@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -140,12 +141,23 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, SurgicalKitItem> SURGICAL_KIT = ITEMS.register("surgical_kit",
 		() -> new SurgicalKitItem(CBBlocks.SURGICAL_KIT.get(),
-			new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY)));
+			new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY), false));
 
 	public static final DeferredHolder<Item, CreativeSurgicalKitItem> CREATIVE_SURGICAL_KIT =
 		ITEMS.register("creative_surgical_kit",
 			() -> new CreativeSurgicalKitItem(CBBlocks.CREATIVE_SURGICAL_KIT.get(),
-				new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+				new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), false));
+
+	public static final DeferredHolder<Item, SurgicalKitItem> BORROWED_SURGICAL_TOOL =
+		ITEMS.register("borrowed_surgical_tool", () -> new SurgicalKitItem(CBBlocks.SURGICAL_KIT.get(),
+			new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY), true));
+
+	public static final DeferredHolder<Item, CreativeSurgicalKitItem> BORROWED_CREATIVE_SURGICAL_TOOL =
+		ITEMS.register("borrowed_creative_surgical_tool", () -> new CreativeSurgicalKitItem(
+			CBBlocks.CREATIVE_SURGICAL_KIT.get(), new Item.Properties().stacksTo(1).rarity(Rarity.EPIC), true));
+
+	public static final List<DeferredHolder<Item, ? extends SurgicalKitItem>> SURGICAL_KITS =
+		List.of(SURGICAL_KIT, CREATIVE_SURGICAL_KIT, BORROWED_SURGICAL_TOOL, BORROWED_CREATIVE_SURGICAL_TOOL);
 
 	public static final DeferredHolder<Item, SurgicalJointItem> SURGICAL_JOINT = ITEMS.register("surgical_joint",
 		() -> new SurgicalJointItem(new Item.Properties()));

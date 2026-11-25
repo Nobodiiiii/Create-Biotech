@@ -9,18 +9,18 @@ import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBDataComponents;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.equipment.toolbox.ToolboxHandler;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -30,11 +30,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class SurgicalKitBlockEntity extends BlockEntity {
-	private static final String LOAN = "SurgicalKitLoan";
+	private static final String SOURCE_ID_TAG = "ToolSourceId";
 	private static final Map<Level, Set<SurgicalKitBlockEntity>> CLIENT_KITS = new WeakHashMap<>();
 	private ItemStack storedKit;
 	@Nullable
-	private UUID loanId;
+	private UUID sourceId;
 
 	public SurgicalKitBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.SURGICAL_KIT.get(), pos, state);
@@ -74,18 +74,21 @@ public class SurgicalKitBlockEntity extends BlockEntity {
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.loadAdditional(tag, registries);
-		loanId = tag.hasUUID("Loan") ? tag.getUUID("Loan") : null;
-		storedKit = loanId != null ? ItemStack.EMPTY : tag.contains("Kit")
-			? ItemStack.parseOptional(registries, tag.getCompound("Kit")) : new ItemStack(getBlockState().getBlock());
+		sourceId = tag.hasUUID(SOURCE_ID_TAG) ? tag.getUUID(SOURCE_ID_TAG) : null;
+		if (tag.contains("Kit", Tag.TAG_COMPOUND))
+			storedKit = ItemStack.parseOptional(registries, tag.getCompound("Kit"));
+		else if (tag.hasUUID("Loan"))
+			storedKit = ItemStack.EMPTY;
+		else
+			storedKit = new ItemStack(getBlockState().getBlock());
 	}
 
 	@Override
 	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.saveAdditional(tag, registries);
-		if (loanId != null)
-			tag.putUUID("Loan", loanId);
-		else
-			tag.put("Kit", storedKit.saveOptional(registries));
+		tag.put("Kit", storedKit.saveOptional(registries));
+		if (sourceId != null)
+			tag.putUUID(SOURCE_ID_TAG, sourceId);
 	}
 
 	@Override
@@ -96,7 +99,7 @@ public class SurgicalKitBlockEntity extends BlockEntity {
 	void storePlacedStack(ItemStack stack) {
 		setComponents(DataComponentMap.EMPTY);
 		storedKit = stack.copyWithCount(1);
-		loanId = null;
+		sourceId = null;
 		setChanged();
 	}
 
@@ -104,99 +107,39 @@ public class SurgicalKitBlockEntity extends BlockEntity {
 		return storedKit.copy();
 	}
 
+	boolean matchesSource(UUID id) {
+		return id.equals(sourceId);
+	}
+
 	void select(ServerPlayer player, int slot, @Nullable SurgicalKitItem.Tool tool) {
 		Inventory inventory = player.getInventory();
-		if (loanId != null) {
-			selectLoanedTool(inventory, slot, tool);
-			return;
-		}
-		if (tool == null) {
-			SurgicalKitItem.setSelectedTool(storedKit, null);
-			setChanged();
-			return;
-		}
-		if (!SurgicalKitItem.availableTools(storedKit).contains(tool))
-			return;
+		SurgicalKitItem borrowedTool = getBlockState().is(CBBlocks.CREATIVE_SURGICAL_KIT.get())
+			? CBItems.BORROWED_CREATIVE_SURGICAL_TOOL.get() : CBItems.BORROWED_SURGICAL_TOOL.get();
 		ItemStack held = inventory.getItem(slot);
+		if (tool == null) {
+			if (held.is(borrowedTool)) {
+				inventory.setItem(slot, ItemStack.EMPTY);
+				inventory.setChanged();
+			}
+			return;
+		}
+		ItemStack selected = new ItemStack(borrowedTool);
+		if (!SurgicalKitItem.availableTools(selected).contains(tool))
+			return;
 		if (!held.isEmpty()) {
 			int freeSlot = inventory.getFreeSlot();
 			if (freeSlot < 0)
 				return;
 			inventory.setItem(freeSlot, held);
 		}
-		loanId = UUID.randomUUID();
-		CompoundTag loan = new CompoundTag();
-		loan.putUUID("Id", loanId);
-		loan.putLong("Pos", worldPosition.asLong());
-		loan.putString("Dimension", player.level().dimension().location().toString());
-		CBItemData.edit(storedKit, tag -> tag.put(LOAN, loan));
-		SurgicalKitItem.setSelectedTool(storedKit, tool);
-		inventory.setItem(slot, storedKit);
-		storedKit = ItemStack.EMPTY;
+		if (sourceId == null) {
+			sourceId = UUID.randomUUID();
+			setChanged();
+		}
+		selected.set(CBDataComponents.SURGICAL_TOOL_SOURCE.get(),
+			new SurgicalToolSource(GlobalPos.of(player.level().dimension(), worldPosition), sourceId));
+		SurgicalKitItem.setSelectedTool(selected, tool);
+		inventory.setItem(slot, selected);
 		inventory.setChanged();
-		setChanged();
-	}
-
-	private void selectLoanedTool(Inventory inventory, int slot, @Nullable SurgicalKitItem.Tool tool) {
-		for (int index = 0; index < inventory.getContainerSize(); index++) {
-			ItemStack stack = inventory.getItem(index);
-			CompoundTag loan = loanData(stack);
-			if (loan == null || !matchingLoan(loan, stack))
-				continue;
-			if (tool == null) {
-				acceptReturn(inventory.removeItemNoUpdate(index));
-			} else if (SurgicalKitItem.availableTools(stack).contains(tool)) {
-				SurgicalKitItem.setSelectedTool(stack, tool);
-				if (index != slot && (index < Inventory.INVENTORY_SIZE || index == Inventory.SLOT_OFFHAND)) {
-					inventory.setItem(index, inventory.getItem(slot));
-					inventory.setItem(slot, stack);
-				}
-			}
-			inventory.setChanged();
-			return;
-		}
-	}
-
-	void acceptReturn(ItemStack stack) {
-		CBItemData.edit(stack, tag -> tag.remove(LOAN));
-		SurgicalKitItem.setSelectedTool(stack, null);
-		storedKit = stack;
-		loanId = null;
-		setChanged();
-	}
-
-	static boolean isLoaned(ItemStack stack) {
-		return loanData(stack) != null;
-	}
-
-	@Nullable
-	private static CompoundTag loanData(ItemStack stack) {
-		CompoundTag tag = SurgicalKitItem.isKit(stack) ? CBItemData.getReadOnly(stack) : null;
-		return tag != null && tag.get(LOAN) instanceof CompoundTag loan ? loan : null;
-	}
-
-	private boolean matchingLoan(CompoundTag loan, ItemStack stack) {
-		return loan.hasUUID("Id") && loan.getUUID("Id").equals(loanId) && stack.is(getBlockState().getBlock().asItem());
-	}
-
-	@Nullable
-	static SurgicalKitBlockEntity findLoan(ServerLevel currentLevel, ItemStack stack) {
-		CompoundTag loan = loanData(stack);
-		if (loan == null)
-			return null;
-		ResourceLocation dimension = ResourceLocation.tryParse(loan.getString("Dimension"));
-		if (dimension == null || !loan.hasUUID("Id")) {
-			CBItemData.edit(stack, tag -> tag.remove(LOAN));
-			return null;
-		}
-		ServerLevel source = currentLevel.getServer().getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
-		BlockPos pos = BlockPos.of(loan.getLong("Pos"));
-		if (source != null && source.isInWorldBounds(pos) && !source.isLoaded(pos))
-			return null;
-		if (source != null && source.isInWorldBounds(pos) && source.getBlockEntity(pos) instanceof SurgicalKitBlockEntity kit
-			&& kit.matchingLoan(loan, stack))
-			return kit;
-		CBItemData.edit(stack, tag -> tag.remove(LOAN));
-		return null;
 	}
 }

@@ -15,8 +15,8 @@ public class CreativeSurgicalKitItem extends SurgicalKitItem {
 	private static final List<Tool> TOOLS = List.of(Tool.MIMIC_INDUCER, Tool.MIMIC_RESTORATIVE,
 		Tool.MIMIC_POSSESSOR, Tool.CUBE_COPIER);
 
-	public CreativeSurgicalKitItem(SurgicalKitBlock block, Properties properties) {
-		super(block, properties, TOOLS);
+	public CreativeSurgicalKitItem(SurgicalKitBlock block, Properties properties, boolean borrowed) {
+		super(block, properties, TOOLS, borrowed);
 	}
 
 	@Override

@@ -2,11 +2,156 @@
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
-    "particle": "create:block/zinc_block"
+    "particle": "create:block/zinc_block",
+    "atlas": "create_biotech:block/slime_culture_chamber/atlas"
   },
-  "loader": "neoforge:obj",
   "render_type": "minecraft:cutout",
-  "model": "create_biotech:models/block/slime_culture_chamber/part_5.obj",
-  "flip_v": true,
-  "automatic_culling": false
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        12,
+        6,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            2.25,
+            2.5,
+            3.0,
+            4.5
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            5.875,
+            2.5,
+            6.625,
+            4.5
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        6,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#atlas",
+          "uv": [
+            1.0,
+            14.125,
+            2.0,
+            14.875
+          ]
+        },
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            2.25,
+            2.5,
+            3.25,
+            4.5
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            5.875,
+            2.5,
+            6.875,
+            4.5
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        6,
+        0
+      ],
+      "to": [
+        8.5,
+        16,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            2.03125,
+            9.3125,
+            2.5625,
+            11.3125
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            5.65625,
+            9.3125,
+            6.1875,
+            11.3125
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        6,
+        0
+      ],
+      "to": [
+        12.5,
+        16,
+        16
+      ],
+      "faces": {
+        "east": {
+          "texture": "#atlas",
+          "uv": [
+            3.78125,
+            14.125,
+            4.78125,
+            15.375
+          ]
+        },
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            2.03125,
+            9.3125,
+            2.8125,
+            11.3125
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            5.65625,
+            9.3125,
+            6.4375,
+            11.3125
+          ]
+        }
+      }
+    }
+  ]
 }

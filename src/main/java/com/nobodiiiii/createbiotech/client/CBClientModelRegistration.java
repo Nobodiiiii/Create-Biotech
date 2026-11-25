@@ -140,13 +140,20 @@ final class CBClientModelRegistration {
 					}
 				});
 		}
-		for (String path : java.util.List.of("surgical_kit", "creative_surgical_kit")) {
-			ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
-				CreateBiotech.asResource(path));
-			var model = models.get(modelLocation);
-			if (model != null)
-				models.put(modelLocation, new SurgicalKitItemModel(model));
-		}
+		shareSurgicalKitModel(models, ModelResourceLocation.inventory(CBItems.SURGICAL_KIT.getId()),
+			ModelResourceLocation.inventory(CBItems.BORROWED_SURGICAL_TOOL.getId()));
+		shareSurgicalKitModel(models, ModelResourceLocation.inventory(CBItems.CREATIVE_SURGICAL_KIT.getId()),
+			ModelResourceLocation.inventory(CBItems.BORROWED_CREATIVE_SURGICAL_TOOL.getId()));
+	}
+
+	private static void shareSurgicalKitModel(java.util.Map<ModelResourceLocation, BakedModel> models,
+		ModelResourceLocation kitLocation, ModelResourceLocation borrowedLocation) {
+		BakedModel model = models.get(kitLocation);
+		if (model == null)
+			return;
+		BakedModel kitModel = new SurgicalKitItemModel(model);
+		models.put(kitLocation, kitModel);
+		models.put(borrowedLocation, kitModel);
 	}
 
 	/**
@@ -197,9 +204,8 @@ final class CBClientModelRegistration {
 	}
 
 	static void registerSurgicalKitModelProperties() {
-		ItemProperties.register(CBItems.SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
-			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
-		ItemProperties.register(CBItems.CREATIVE_SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
-			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
+		for (var kit : CBItems.SURGICAL_KITS)
+			ItemProperties.register(kit.get(), CreateBiotech.asResource("surgical_tool"),
+				(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
 	}
 }

@@ -320,7 +320,7 @@ public class CreateBiotechClient {
 		event.register(CBItems.DIAMOND_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
 		event.register(CBItems.NETHERITE_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
 		event.register(CBItems.SURGICAL_JOINT.get(), SurgicalJointItemDecorator.INSTANCE);
-		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
-		event.register(CBItems.CREATIVE_SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
+		for (var kit : CBItems.SURGICAL_KITS)
+			event.register(kit.get(), SurgicalKitItemDecorator.INSTANCE);
 	}
 }

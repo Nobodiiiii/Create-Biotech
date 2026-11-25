@@ -2,11 +2,133 @@
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
-    "particle": "create:block/zinc_block"
+    "particle": "create:block/zinc_block",
+    "atlas": "create_biotech:block/slime_culture_chamber/atlas"
   },
-  "loader": "neoforge:obj",
   "render_type": "minecraft:cutout",
-  "model": "create_biotech:models/block/slime_culture_chamber/part_24.obj",
-  "flip_v": true,
-  "automatic_culling": false
+  "elements": [
+    {
+      "from": [
+        8.5,
+        0,
+        9.5
+      ],
+      "to": [
+        16,
+        16,
+        9.5
+      ],
+      "faces": {
+        "south": {
+          "texture": "#atlas",
+          "uv": [
+            13.0,
+            1.375,
+            13.46875,
+            3.375
+          ]
+        },
+        "north": {
+          "texture": "#atlas",
+          "uv": [
+            13.46875,
+            1.375,
+            13.0,
+            3.375
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        4,
+        0,
+        6.5
+      ],
+      "to": [
+        7,
+        16,
+        9.5
+      ],
+      "faces": {
+        "north": {
+          "texture": "#atlas",
+          "uv": [
+            7.375,
+            0.75,
+            7.5625,
+            2.75
+          ]
+        },
+        "east": {
+          "texture": "#atlas",
+          "uv": [
+            7.875,
+            0.75,
+            8.0625,
+            2.75
+          ]
+        },
+        "south": {
+          "texture": "#atlas",
+          "uv": [
+            8.375,
+            0.75,
+            8.5625,
+            2.75
+          ]
+        },
+        "west": {
+          "texture": "#atlas",
+          "uv": [
+            8.0625,
+            0.75,
+            7.875,
+            2.75
+          ]
+        }
+      },
+      "rotation": {
+        "angle": -45,
+        "axis": "y",
+        "origin": [
+          5.5,
+          3.5,
+          10.5
+        ]
+      }
+    },
+    {
+      "from": [
+        6.5,
+        0,
+        0
+      ],
+      "to": [
+        6.5,
+        16,
+        7.5
+      ],
+      "faces": {
+        "west": {
+          "texture": "#atlas",
+          "uv": [
+            14.46875,
+            1.375,
+            14.9375,
+            3.375
+          ]
+        },
+        "east": {
+          "texture": "#atlas",
+          "uv": [
+            14.9375,
+            1.375,
+            14.46875,
+            3.375
+          ]
+        }
+      }
+    }
+  ]
 }

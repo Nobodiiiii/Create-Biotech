@@ -206,7 +206,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 				CBPackets.sendToServer(new SurgicalJointSelectionPacket(hand, hotbarSlot, type));
 			} else if (!jointWheel) {
 				SurgicalKitItem.Tool selected = hoveredSlot == options.length ? null : tools[hoveredSlot];
-				if (placedKit == null)
+				if (placedKit == null && (selected != null || !SurgicalKitItem.isBorrowedTool(held)))
 					SurgicalKitItem.setSelectedTool(held, selected);
 				CBPackets.sendToServer(new SurgicalKitSelectionPacket(hand, hotbarSlot,
 					placedKit == null ? null : placedKit.getBlockPos(), selected));

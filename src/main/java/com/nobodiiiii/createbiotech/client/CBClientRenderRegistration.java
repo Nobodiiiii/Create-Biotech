@@ -143,7 +143,8 @@ final class CBClientRenderRegistration {
 			: -1, CBItems.SONIC_DOG_CANNON.get());
 		event.register((stack, tintIndex) -> tintIndex == 0
 			&& SurgicalKitItem.selectedTool(stack) == SurgicalKitItem.Tool.MIMIC_RESTORATIVE
-			? net.minecraft.util.FastColor.ARGB32.opaque(0xCD5CAB) : -1, CBItems.CREATIVE_SURGICAL_KIT.get());
+			? net.minecraft.util.FastColor.ARGB32.opaque(0xCD5CAB) : -1,
+			CBItems.CREATIVE_SURGICAL_KIT.get(), CBItems.BORROWED_CREATIVE_SURGICAL_TOOL.get());
 	}
 
 	static void registerClientExtensions(RegisterClientExtensionsEvent event) {

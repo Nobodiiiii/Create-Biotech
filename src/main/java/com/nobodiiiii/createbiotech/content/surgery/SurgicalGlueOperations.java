@@ -11,7 +11,6 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -372,13 +371,8 @@ final class SurgicalGlueOperations {
 
 	static void damageInteractionTool(ItemStack tool, int amount, Player player,
 		InteractionHand hand) {
-		if (!SurgicalGlueOperations.consumeInteractionItems())
-			return;
-		SurgicalKitBlockEntity loan = player instanceof ServerPlayer serverPlayer && SurgicalKitItem.isKit(tool)
-			? SurgicalKitBlockEntity.findLoan(serverPlayer.serverLevel(), tool) : null;
-		tool.hurtAndBreak(amount, player, LivingEntity.getSlotForHand(hand));
-		if (loan != null && tool.isEmpty())
-			loan.getLevel().destroyBlock(loan.getBlockPos(), false);
+		if (SurgicalGlueOperations.consumeInteractionItems())
+			tool.hurtAndBreak(amount, player, LivingEntity.getSlotForHand(hand));
 	}
 
 	/**

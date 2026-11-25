@@ -2,11 +2,42 @@
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
-    "particle": "create:block/zinc_block"
+    "particle": "create:block/zinc_block",
+    "atlas": "create_biotech:block/slime_culture_chamber/atlas"
   },
-  "loader": "neoforge:obj",
   "render_type": "minecraft:cutout",
-  "model": "create_biotech:models/block/slime_culture_chamber/part_19.obj",
-  "flip_v": true,
-  "automatic_culling": false
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        6.5
+      ],
+      "to": [
+        16,
+        16,
+        6.5
+      ],
+      "faces": {
+        "north": {
+          "texture": "#atlas",
+          "uv": [
+            13.46875,
+            1.375,
+            14.46875,
+            3.375
+          ]
+        },
+        "south": {
+          "texture": "#atlas",
+          "uv": [
+            14.46875,
+            1.375,
+            13.46875,
+            3.375
+          ]
+        }
+      }
+    }
+  ]
 }

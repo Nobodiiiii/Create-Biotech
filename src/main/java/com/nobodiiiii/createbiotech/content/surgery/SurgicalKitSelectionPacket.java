@@ -40,10 +40,8 @@ public record SurgicalKitSelectionPacket(InteractionHand hand, int hotbarSlot, @
 		ItemStack stack = player.getItemInHand(hand);
 		if (!SurgicalKitItem.isKit(stack))
 			return;
-		SurgicalKitBlockEntity source = tool == null ? SurgicalKitBlockEntity.findLoan(level, stack) : null;
-		if (source != null) {
+		if (tool == null && SurgicalKitItem.isBorrowedTool(stack)) {
 			player.setItemInHand(hand, ItemStack.EMPTY);
-			source.acceptReturn(stack);
 		} else {
 			SurgicalKitItem.setSelectedTool(stack, tool);
 		}

@@ -16,8 +16,10 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
+import com.nobodiiiii.createbiotech.registry.CBDataComponents;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
@@ -39,6 +41,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
@@ -47,9 +50,15 @@ import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 /** Base item for kits which store a selected logical tool without creating or consuming its display stack. */
+@EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class SurgicalKitItem extends BlockItem {
 	public static final int MAX_DURABILITY = 200;
 	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
@@ -57,6 +66,7 @@ public class SurgicalKitItem extends BlockItem {
 		Tool.SMART_SUPER_GLUE, Tool.HONEY_BOTTLE, Tool.SLIME_BALL, Tool.SYMMETRY_WAND,
 		Tool.WRENCH, Tool.TEMPORARY_BOX);
 	private static final String SELECTED_TOOL_TAG = "SurgicalKitTool";
+	private static final String LEGACY_LOAN_TAG = "SurgicalKitLoan";
 	private static final String TEMPORARY_MOVE_TAG = "SurgicalKitTemporaryMove";
 	private static final String MOVE_FORMAT_VERSION_TAG = "Version";
 	private static final int MOVE_FORMAT_VERSION = 1;
@@ -70,6 +80,7 @@ public class SurgicalKitItem extends BlockItem {
 	private static final String MOVE_SUBJECT_STATE_TAG = "SourceState";
 	private static final String MOVE_ASSEMBLY_TAG = "SourceAssembly";
 	private static final int TEMPORARY_MOVE_VALIDATION_INTERVAL = 20;
+	private static final int BORROWED_SOURCE_CHECK_INTERVAL = 100;
 	private static final MapCodec<Optional<String>> SELECTED_TOOL_FIELD =
 		Codec.STRING.optionalFieldOf(SELECTED_TOOL_TAG);
 	// The selected tool is read by several per-frame predicates, so it is decoded straight from the
@@ -79,62 +90,63 @@ public class SurgicalKitItem extends BlockItem {
 		.weakKeys()
 		.build(CacheLoader.from(SurgicalKitItem::readSelectedTool));
 	private final List<Tool> availableTools;
+	private final boolean borrowed;
 
-	public SurgicalKitItem(SurgicalKitBlock block, Properties properties) {
-		this(block, properties, STANDARD_TOOLS);
+	public SurgicalKitItem(SurgicalKitBlock block, Properties properties, boolean borrowed) {
+		this(block, properties, STANDARD_TOOLS, borrowed);
 	}
 
-	protected SurgicalKitItem(SurgicalKitBlock block, Properties properties, List<Tool> availableTools) {
+	protected SurgicalKitItem(SurgicalKitBlock block, Properties properties, List<Tool> availableTools, boolean borrowed) {
 		super(block, properties);
 		if (availableTools == null || availableTools.isEmpty())
 			throw new IllegalArgumentException("A surgical kit must contain at least one tool");
 		this.availableTools = List.copyOf(availableTools);
+		this.borrowed = borrowed;
 	}
 
 	@Override
 	public void verifyComponentsAfterLoad(ItemStack stack) {
 		super.verifyComponentsAfterLoad(stack);
 		CapturedEntityBoxHelper.migrateReleasedAssembly(stack);
+		CustomData data = CBItemData.getReadOnlyComponent(stack);
+		if (data != null && data.contains(LEGACY_LOAN_TAG))
+			CBItemData.edit(stack, tag -> tag.remove(LEGACY_LOAN_TAG));
+	}
+
+	@Override
+	public void registerBlocks(Map<Block, Item> blockToItemMap, Item item) {
+		if (!borrowed)
+			super.registerBlocks(blockToItemMap, item);
 	}
 
 	@Override
 	public InteractionResult place(BlockPlaceContext context) {
-		ItemStack stack = context.getItemInHand();
-		if (selectedTool(stack) != null || SurgicalKitBlockEntity.isLoaned(stack))
+		if (borrowed || selectedTool(context.getItemInHand()) != null)
 			return InteractionResult.PASS;
 		return super.place(context);
 	}
 
-	@Override
-	public boolean onEntityItemUpdate(ItemStack stack, ItemEntity entity) {
-		if (!(entity.level() instanceof ServerLevel server))
-			return false;
-		SurgicalKitBlockEntity kit = SurgicalKitBlockEntity.findLoan(server, stack);
-		if (kit == null)
-			return false;
-		kit.acceptReturn(stack.copy());
-		entity.discard();
-		return true;
-	}
-
-	@Override
-	public void onDestroyed(ItemEntity entity) {
-		if (entity.level() instanceof ServerLevel server) {
-			SurgicalKitBlockEntity kit = SurgicalKitBlockEntity.findLoan(server, entity.getItem());
-			if (kit != null)
-				kit.getLevel().destroyBlock(kit.getBlockPos(), false);
-		}
-		super.onDestroyed(entity);
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public static void onItemEntityJoin(EntityJoinLevelEvent event) {
+		if (!event.getLevel().isClientSide && event.getEntity() instanceof ItemEntity item
+			&& isBorrowedTool(item.getItem()))
+			event.setCanceled(true);
 	}
 
 	@Override
 	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-		if (!(level instanceof ServerLevel currentLevel)
-			|| Math.floorMod(level.getGameTime() + entity.getId() + slotId,
-				TEMPORARY_MOVE_VALIDATION_INTERVAL) != 0)
+		if (!(level instanceof ServerLevel currentLevel))
 			return;
-		SurgicalKitBlockEntity.findLoan(currentLevel, stack);
-		if (!availableTools.contains(Tool.TEMPORARY_BOX))
+		long staggeredTick = level.getGameTime() + entity.getId() + slotId;
+		if (borrowed && Math.floorMod(staggeredTick, BORROWED_SOURCE_CHECK_INTERVAL) == 0) {
+			SurgicalToolSource source = stack.get(CBDataComponents.SURGICAL_TOOL_SOURCE.get());
+			if (source == null || !source.isAvailable(currentLevel)) {
+				stack.setCount(0);
+				return;
+			}
+		}
+		if (!availableTools.contains(Tool.TEMPORARY_BOX)
+			|| Math.floorMod(staggeredTick, TEMPORARY_MOVE_VALIDATION_INTERVAL) != 0)
 			return;
 		CompoundTag root = CBItemData.getReadOnly(stack);
 		boolean hasMoveData = root != null && root.contains(TEMPORARY_MOVE_TAG, Tag.TAG_COMPOUND);
@@ -210,6 +222,10 @@ public class SurgicalKitItem extends BlockItem {
 
 	public static boolean isKit(ItemStack stack) {
 		return stack.getItem() instanceof SurgicalKitItem;
+	}
+
+	public static boolean isBorrowedTool(ItemStack stack) {
+		return stack.getItem() instanceof SurgicalKitItem kit && kit.borrowed;
 	}
 
 	/** Whether the kit has its logical shears, honey bottle or slime ball selected. */

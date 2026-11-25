@@ -2,11 +2,115 @@
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "textures": {
-    "particle": "create:block/zinc_block"
+    "particle": "create:block/zinc_block",
+    "atlas": "create_biotech:block/slime_culture_chamber/atlas"
   },
-  "loader": "neoforge:obj",
   "render_type": "minecraft:cutout",
-  "model": "create_biotech:models/block/slime_culture_chamber/part_30.obj",
-  "flip_v": true,
-  "automatic_culling": false
+  "elements": [
+    {
+      "from": [
+        7.5,
+        6,
+        0
+      ],
+      "to": [
+        16,
+        14,
+        16
+      ],
+      "faces": {
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            0.5,
+            9.3125,
+            1.03125,
+            11.3125
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            4.125,
+            9.3125,
+            4.65625,
+            11.3125
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        3.5,
+        6,
+        0
+      ],
+      "to": [
+        16,
+        14,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#atlas",
+          "uv": [
+            6.34375,
+            14.125,
+            7.34375,
+            15.125
+          ]
+        },
+        "up": {
+          "texture": "#atlas",
+          "uv": [
+            0.25,
+            9.3125,
+            1.03125,
+            11.3125
+          ]
+        },
+        "down": {
+          "texture": "#atlas",
+          "uv": [
+            3.875,
+            9.3125,
+            4.65625,
+            11.3125
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        6.5,
+        0,
+        0
+      ],
+      "to": [
+        6.5,
+        6,
+        16
+      ],
+      "faces": {
+        "west": {
+          "texture": "#atlas",
+          "uv": [
+            13.46875,
+            0.625,
+            14.46875,
+            1.375
+          ]
+        },
+        "east": {
+          "texture": "#atlas",
+          "uv": [
+            14.46875,
+            0.625,
+            13.46875,
+            1.375
+          ]
+        }
+      }
+    }
+  ]
 }
