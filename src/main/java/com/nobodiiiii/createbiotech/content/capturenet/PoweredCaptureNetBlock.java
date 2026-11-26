@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.capturenet;
 
+import org.jetbrains.annotations.Nullable;
+
+import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
@@ -10,7 +13,11 @@ import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -18,7 +25,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -30,6 +39,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.common.util.FakePlayer;
 
 public class PoweredCaptureNetBlock extends KineticBlock implements IBE<PoweredCaptureNetBlockEntity>, ICogWheel {
 
@@ -38,6 +48,21 @@ public class PoweredCaptureNetBlock extends KineticBlock implements IBE<PoweredC
 	public PoweredCaptureNetBlock(Properties properties) {
 		super(properties);
 		registerDefaultState(defaultBlockState().setValue(CEILING, false));
+	}
+
+	public static void storeMountedNet(ItemStack stack, ItemStack net, HolderLookup.Provider registries) {
+		var data = stack.getOrDefault(DataComponents.BLOCK_ENTITY_DATA, CustomData.EMPTY).copyTag();
+		ArmCaptureBehaviour.writeNet(data, registries, net.copyWithCount(1));
+		BlockItem.setBlockEntityData(stack, CBBlockEntityTypes.POWERED_CAPTURE_NET.get(), data);
+	}
+
+	public static @Nullable CaptureNetTier mountedNetTier(ItemStack stack) {
+		CustomData data = stack.get(DataComponents.BLOCK_ENTITY_DATA);
+		if (data == null)
+			return null;
+		var net = CBItemData.readOnlySnapshot(data).getCompound(ArmCaptureBehaviour.NET_TAG);
+		ResourceLocation itemId = ResourceLocation.tryParse(net.getString("id"));
+		return itemId != null && BuiltInRegistries.ITEM.get(itemId) instanceof CaptureNetItem item ? item.tier() : null;
 	}
 
 	@Override
@@ -73,7 +98,8 @@ public class PoweredCaptureNetBlock extends KineticBlock implements IBE<PoweredC
 	@Override
 	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
 		Player player, InteractionHand hand, BlockHitResult hit) {
-		if (!(stack.getItem() instanceof CaptureNetItem) || !player.mayBuild() || !level.mayInteract(player, pos))
+		if (!(stack.getItem() instanceof CaptureNetItem) || player instanceof FakePlayer
+			|| !player.mayBuild() || !level.mayInteract(player, pos))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 		PoweredCaptureNetBlockEntity capture = getBlockEntity(level, pos);
 		if (capture == null)

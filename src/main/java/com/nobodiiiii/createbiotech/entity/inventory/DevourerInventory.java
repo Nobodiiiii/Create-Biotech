@@ -1,8 +1,8 @@
 package com.nobodiiiii.createbiotech.entity.inventory;
 
 import java.util.Collection;
+import java.util.List;
 
-import com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler;
 import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
@@ -10,14 +10,11 @@ import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.SimpleContainer;
-import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.ChestMenu;
 import net.neoforged.neoforge.common.util.INBTSerializable;
 
 /** The animal's possessions travel with its live entity and its captured box. */
@@ -42,42 +39,34 @@ public final class DevourerInventory extends SimpleContainer implements INBTSeri
 		return false;
 	}
 
-	public static boolean tryOpen(Mob holder, Player player, InteractionHand hand) {
-		if (!player.isSecondaryUseActive() || !player.getItemInHand(hand).isEmpty()
-			|| !(canCollect(holder) || holder.hasData(CBAttachmentTypes.DEVOURER_INVENTORY))) return false;
-		var owner = SlimeCompanionHandler.ownerOf(holder);
-		if (!holder.isAlive() || owner != null && !owner.equals(player.getUUID())) return false;
-		if (!holder.level().isClientSide) {
-			var inventory = holder.getData(CBAttachmentTypes.DEVOURER_INVENTORY);
-			player.openMenu(new SimpleMenuProvider((id, slots, opener) -> ChestMenu.threeRows(id, slots, inventory),
-				holder.getDisplayName()));
-		}
-		return true;
-	}
-
-	@Override
-	public boolean stillValid(Player player) {
-		var owner = SlimeCompanionHandler.ownerOf(holder);
-		return holder.isAlive() && holder.level() == player.level() && player.canInteractWithEntity(holder, 4)
-			&& (owner == null || owner.equals(player.getUUID()));
-	}
-
 	public void collect(Collection<ItemEntity> drops) {
 		for (var iterator = drops.iterator(); iterator.hasNext();) {
-			var drop = iterator.next();
-			var stack = drop.getItem();
-			int remaining = stack.getCount();
-			// A modded loot entry may be larger than one legal slot.
-			while (remaining > 0) {
-				int batch = Math.min(remaining, getMaxStackSize(stack));
-				if (batch <= 0) break;
-				int inserted = batch - addItem(stack.copyWithCount(batch)).getCount();
-				remaining -= inserted;
-				if (inserted < batch) break;
-			}
-			if (remaining == 0) iterator.remove();
-			else if (remaining != stack.getCount()) drop.setItem(stack.copyWithCount(remaining));
+			if (insertDrop(iterator.next())) iterator.remove();
 		}
+	}
+
+	public void collectSpawned(ServerLevel level, Collection<ItemEntity> drops) {
+		for (var drop : List.copyOf(drops)) {
+			if (!holder.isAlive() || !holder.isAddedToLevel() || holder.level() != level) break;
+			if (drop.level() != level || !drop.isAddedToLevel() || drop.isRemoved() || drop.getItem().isEmpty()) continue;
+			if (insertDrop(drop)) drop.discard();
+		}
+	}
+
+	private boolean insertDrop(ItemEntity drop) {
+		var stack = drop.getItem();
+		int remaining = stack.getCount();
+		// A modded loot entry may be larger than one legal slot.
+		while (remaining > 0) {
+			int batch = Math.min(remaining, getMaxStackSize(stack));
+			if (batch <= 0) break;
+			int inserted = batch - addItem(stack.copyWithCount(batch)).getCount();
+			remaining -= inserted;
+			if (inserted < batch) break;
+		}
+		if (remaining == 0) return true;
+		if (remaining != stack.getCount()) drop.setItem(stack.copyWithCount(remaining));
+		return false;
 	}
 
 	@Override

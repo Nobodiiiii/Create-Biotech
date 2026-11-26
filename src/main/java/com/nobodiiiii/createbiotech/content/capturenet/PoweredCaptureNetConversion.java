@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.TriState;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
@@ -41,9 +42,11 @@ public final class PoweredCaptureNetConversion {
 		ItemStack held = event.getItemStack();
 		Level level = event.getLevel();
 		BlockPos pos = event.getPos();
-		if (event.isCanceled() || !(held.getItem() instanceof CaptureNetItem) || player.isSpectator()
-			|| !player.mayBuild() || !level.mayInteract(player, pos)
-			|| event.getUseItem() == TriState.FALSE || event.getUseBlock() == TriState.FALSE)
+		if (event.isCanceled() || !(held.getItem() instanceof CaptureNetItem))
+			return;
+		boolean fakePlayer = player instanceof FakePlayer;
+		if (!fakePlayer && (player.isSpectator() || !player.mayBuild() || !level.mayInteract(player, pos)
+			|| event.getUseItem() == TriState.FALSE || event.getUseBlock() == TriState.FALSE))
 			return;
 		BlockState state = level.getBlockState(pos);
 		if (!AllBlocks.MECHANICAL_ARM.has(state))
@@ -55,6 +58,9 @@ public final class PoweredCaptureNetConversion {
 
 		event.setCanceled(true);
 		event.setCancellationResult(InteractionResult.FAIL);
+		// Cancel fake-player clicks before Create can apply the manual recipe.
+		if (fakePlayer)
+			return;
 		if (CaptureNetItem.isOccupied(held)) {
 			if (!level.isClientSide)
 				player.displayClientMessage(Component.translatable("create_biotech.arm_capture.net_occupied"), true);

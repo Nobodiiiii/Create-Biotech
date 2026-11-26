@@ -15,7 +15,6 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.monster.Slime;
-import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -104,8 +103,7 @@ public final class SlimeCompanionHandler {
 					else if (!player.getInventory().add(container)) player.drop(container, false);
 				}
 			}
-		} else if (living instanceof Slime && !isLivestock(living) && held.isEmpty() && player.getUUID().equals(ownerOf(living))
-			&& !(living instanceof DevourerEntity && player.isSecondaryUseActive())) {
+		} else if (living instanceof Slime && !isLivestock(living) && held.isEmpty() && player.getUUID().equals(ownerOf(living))) {
 			if (!living.level().isClientSide)
 				living.getPersistentData().putBoolean(SITTING, !living.getPersistentData().getBoolean(SITTING));
 		} else return;

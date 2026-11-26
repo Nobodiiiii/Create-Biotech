@@ -9,11 +9,15 @@ import org.joml.Quaternionf;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.vehicle.DismountHelper;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -105,6 +109,20 @@ public final class BionicRiding {
 		// Block collisions only: the passenger is intentionally touching its own mount and its hit parts.
 		return !passenger.level().getBlockCollisions(passenger, bounds.deflate(1.0e-5)).iterator().hasNext()
 			&& passenger.level().getWorldBorder().isWithinBounds(bounds);
+	}
+
+	@Nullable
+	@SuppressWarnings("deprecation") // Minecraft 1.21.1 chunk-presence check.
+	static Vec3 safeDismount(Entity mount, LivingEntity passenger) {
+		int[][] offsets = DismountHelper.offsetsForDirection(mount.getDirection());
+		for (int y = 0; y <= (int) mount.getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)
+			for (int[] offset : offsets) {
+				BlockPos pos = mount.blockPosition().offset(offset[0] * radius, y, offset[1] * radius);
+				if (!mount.level().hasChunkAt(pos) || !mount.level().getFluidState(pos).isEmpty()) continue;
+				Vec3 safe = DismountHelper.findSafeDismountLocation(passenger.getType(), mount.level(), pos, true);
+				if (safe != null && !mount.getBoundingBox().intersects(passenger.getDimensions(Pose.STANDING).makeBoundingBox(safe))) return safe;
+			}
+		return null;
 	}
 
 	/** Clip translation against each rider's swept bounds, including ceilings above a small mount. */

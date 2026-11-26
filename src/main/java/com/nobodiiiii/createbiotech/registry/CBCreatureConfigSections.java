@@ -143,6 +143,35 @@ public final class CBCreatureConfigSections {
 		}
 	}
 
+	public static class Devourer {
+		public final ModConfigSpec.IntValue minPlayerDevourLevel;
+		public final ModConfigSpec.IntValue playerGraceSeconds;
+		public final ModConfigSpec.DoubleValue playerEscapeDamage;
+		public final ModConfigSpec.IntValue playerCooldownSeconds;
+
+		Devourer(ModConfigSpec.Builder builder) {
+			builder.comment("Player swallowing by wild devourers and bionic creatures.")
+				.translation("create_biotech.configuration.devourer").push("devourer");
+			minPlayerDevourLevel = builder.comment("Minimum Devour level needed to hunt a player as prey. Wild devourers use their size.")
+				.translation("create_biotech.configuration.devourer.minPlayerDevourLevel")
+				.defineInRange("minPlayerDevourLevel", 3, 1, Integer.MAX_VALUE);
+			playerGraceSeconds = builder.comment("Seconds a swallowed player has to fight their way out before digestion.")
+				.translation("create_biotech.configuration.devourer.playerGraceSeconds")
+				.defineInRange("playerGraceSeconds", 5, 1, 3600);
+			playerEscapeDamage = builder.comment("Total health the swallowed player must remove from their host to escape (2 HP = 1 heart).")
+				.translation("create_biotech.configuration.devourer.playerEscapeDamage")
+				.defineInRange("playerEscapeDamage", 10.0, 0.5, 1024.0);
+			playerCooldownSeconds = builder.comment("Seconds before a devourer can swallow the same player again after release.")
+				.translation("create_biotech.configuration.devourer.playerCooldownSeconds")
+				.defineInRange("playerCooldownSeconds", 5, 0, 3600);
+			builder.pop();
+		}
+
+		public boolean canHuntPlayers(int level) {
+			return level >= (SERVER_SPEC.isLoaded() ? minPlayerDevourLevel.get() : minPlayerDevourLevel.getDefault());
+		}
+	}
+
 	public static class GhastHotAirBalloon {
 		public static final int MAGNET_KEEP_ALIVE_PERIOD_TICKS = 4;
 		/** Allows two consecutive keep-alive packets to be delayed or lost before expiry. */

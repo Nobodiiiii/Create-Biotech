@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
+import com.nobodiiiii.createbiotech.content.capturenet.PoweredCaptureNetBlock;
 import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.capturenet.client.PoweredCaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
@@ -207,5 +208,13 @@ final class CBClientModelRegistration {
 		for (var kit : CBItems.SURGICAL_KITS)
 			ItemProperties.register(kit.get(), CreateBiotech.asResource("surgical_tool"),
 				(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
+	}
+
+	static void registerPoweredCaptureNetModelProperties() {
+		ItemProperties.register(CBItems.POWERED_CAPTURE_NET.get(), CreateBiotech.asResource("mounted_net_tier"),
+			(stack, level, entity, seed) -> {
+				var tier = PoweredCaptureNetBlock.mountedNetTier(stack);
+				return tier == null ? 0 : tier.ordinal() + 1;
+			});
 	}
 }

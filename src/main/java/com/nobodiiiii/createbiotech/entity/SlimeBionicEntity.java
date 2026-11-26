@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.entity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.network.chat.Component;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
-import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
@@ -16,6 +15,7 @@ import java.util.List;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -54,7 +54,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -63,6 +65,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
@@ -113,12 +116,13 @@ import net.minecraft.world.entity.projectile.ProjectileDeflection;
 import net.neoforged.neoforge.common.Tags;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.common.NeoForgeMod;
+import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.world.entity.Saddleable,
 	net.minecraft.world.entity.PlayerRideableJumping, net.minecraft.world.entity.HasCustomInventoryScreen,
 	net.neoforged.neoforge.common.IShearable,
-	net.minecraft.world.entity.monster.RangedAttackMob {
+	net.minecraft.world.entity.monster.RangedAttackMob, IEntityWithComplexSpawn {
 	private static final float MAX_COLLISION_WIDTH = 2.0f;
 	private static final float MAX_COLLISION_HEIGHT = 8.0f;
 	static final float MULTIPART_THRESHOLD = 8.0f;
@@ -150,6 +154,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private long observerSince;
 
 	private static final EntityDataAccessor<Optional<UUID>> OWNER_DATA = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+	static final EntityDataAccessor<Optional<UUID>> DEVOURED_PLAYER = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 	private static final EntityDataAccessor<Boolean> SITTING_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
@@ -298,9 +304,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private boolean wallClimbEnabled;
 	private boolean bodyFlightEnabled;
 	boolean devourGroundAttack;
-	private DevourAttackGoal devour;
+	private int walkingJumpDelay;
+	private int replacedDevourerId;
+	DevourAttackGoal devour;
 	WildDevourerSlime wildSlime;
 	private static final EntityDataAccessor<Integer> WILD_SLIME_SIZE = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	static final EntityDataAccessor<Integer> DEVOUR_CARRIER = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.INT);
 
 	boolean organSwimEnabled;
 	private boolean lavaWalkEnabled;
@@ -452,6 +462,24 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	public boolean usesWildSlimeMovement() { return wildSlime != null && wildSlime.active(); }
 
+	/** Walking and devouring both advance this delay while they control a grounded body. */
+	public boolean waitForWalkingJump() {
+		if (walkingJumpDelay <= 0) return false;
+		walkingJumpDelay--;
+		return true;
+	}
+
+	public void resetWalkingJumpDelay(boolean fast) {
+		int delay = 10 + getRandom().nextInt(20);
+		walkingJumpDelay = fast ? delay / 3 : delay;
+	}
+
+	void resetDevourJumpDelay() {
+		int wildSize = wildSlimeSize();
+		if (wildSize > 0 || getLocomotionLegCount() < 2)
+			resetWalkingJumpDelay(wildSize > 0 ? wildSize > 1 : isAggressive() && !isTinySlimeBody());
+	}
+
 	@Override
 	public void setId(int id) {
 		super.setId(id);
@@ -479,6 +507,31 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public void recreateFromPacket(ClientboundAddEntityPacket packet) {
 		super.recreateFromPacket(packet);
 		BionicBodyGeometry.setRegisteredHitPartCount(this, Mth.clamp(packet.getData(), 0, MAX_HIT_PARTS));
+	}
+
+	void inheritDevourer(DevourerEntity previous) {
+		walkingJumpDelay = previous.walkingJumpDelay();
+		replacedDevourerId = previous.getId();
+	}
+
+	@Override
+	public void sendPairingData(ServerPlayer player, Consumer<CustomPacketPayload> bundleBuilder) {
+		if (replacedDevourerId != 0 && tickCount == 0) super.sendPairingData(player, bundleBuilder);
+	}
+
+	@Override
+	public void writeSpawnData(RegistryFriendlyByteBuf buffer) {
+		buffer.writeVarInt(replacedDevourerId);
+	}
+
+	@Override
+	public void readSpawnData(RegistryFriendlyByteBuf buffer) {
+		if (!(level().getEntity(buffer.readVarInt()) instanceof DevourerEntity previous)) return;
+		// The old body can still be interpolating its landing when the new body spawns.
+		Vec3 serverPosition = getPositionCodec().getBase();
+		setPos(previous.position());
+		setOldPosAndRot();
+		lerpTo(serverPosition.x, serverPosition.y, serverPosition.z, getYRot(), getXRot(), 3);
 	}
 
 	void checkBionicInsideBlocks() {
@@ -618,6 +671,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		builder.define(GROWTH_OBSERVER, -1);
 		builder.define(WILD_SLIME_SIZE, 0);
 		builder.define(OWNER_DATA, Optional.empty());
+		builder.define(DEVOURED_PLAYER, Optional.empty());
 		builder.define(SITTING_DATA, false);
 		builder.define(CLIMBING_DATA, false);
 		builder.define(EQUIPMENT_DATA, new CompoundTag());
@@ -631,6 +685,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		builder.define(GUARDIAN_ATTACK_DURATION, 80);
 		builder.define(ATTACH_CELL_DATA, Optional.empty());
 		builder.define(ATTACH_FACE_DATA, Direction.DOWN);
+		builder.define(DEVOUR_CARRIER, -1);
 	}
 
 	private void setBionicOwner(@Nullable UUID value) {
@@ -671,7 +726,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	boolean queueGrowth(DevourGrowthQueue.Meal meal) {
-		if (!DevourGrowth.canDevour(this)) return false;
+		if (!hasDevourCapacity()) return false;
 		if (growthQueue == null) growthQueue = new DevourGrowthQueue();
 		growthQueue.add(meal);
 		return true;
@@ -792,7 +847,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public boolean canAttack(LivingEntity target) {
-		if (!super.canAttack(target) || isAlliedTo(target))
+		if (!super.canAttack(target) || isAlliedTo(target) || DevouredPlayer.isInside(this, target))
 			return false;
 		if (orderedToSit || wildSlimeSize() > 0 && !DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this)))
 			return false;
@@ -909,8 +964,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (customResult != InteractionResult.PASS) return customResult;
 		InteractionResult chestRemovalResult = equipment.removeChest(player, hand, interactionHit);
 		if (chestRemovalResult != InteractionResult.PASS) return chestRemovalResult;
-		if (DevourerInventory.tryOpen(this, player, hand))
-			return InteractionResult.sidedSuccess(level().isClientSide);
 		if (player.isSecondaryUseActive() && equipment.openInventory(player, interactionHit))
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		ItemStack held = player.getItemInHand(hand);
@@ -961,13 +1014,15 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		bionicTraits = BionicTraitSet.EMPTY;
 	}
 
-	/** An inherited special can yield to a lethal leap within its launch range. */
+	/** An inherited special can yield to a crush within its launch range. */
 	public boolean preferDevourToSpecial(@Nullable LivingEntity target) {
 		if (devour == null) return false;
-		if (devourGroundAttack) return DevourGrowth.canDevour(this);
+		if (devourGroundAttack) return devour.isCrushing();
 		return target != null && DevourAttackGoal.size(this) > 0
 			&& devour.replaceContact(target, devourAttackDamage());
 	}
+
+	public boolean isDevourGroundAttack() { return devourGroundAttack; }
 
 	void setDevourGroundAttack(boolean active) {
 		if (active == devourGroundAttack) return;
@@ -1415,7 +1470,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		boolean canDevour = devourSize > 0 && DevourGrowth.canDevour(this);
 		float damage = (float) getBionicTraits().slimeContactDamage(prey && canDevour
 			? devourCarrierDamage() : getAttributeValue(Attributes.ATTACK_DAMAGE));
-		if (prey && canDevour && devour.replaceContact(target, damage)) return;
+		if (prey && (canDevour || target instanceof Player) && devour.replaceContact(target, damage)) return;
 		if (isTinySlimeBody() && (!prey || canDevour)) return;
 		var source = damageSources().mobAttack(this);
 		if (target.hurt(source, damage)) {
@@ -1517,6 +1572,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		lockBlockAttachmentRotation();
 		if (isBlockAttached()) setBoundingBox(makeBoundingBox());
 		BionicBodyGeometry.updateHitParts(this);
+		if (devour != null) devour.swallowedPlayer.tick();
 	}
 
 	@Override
@@ -1985,7 +2041,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (source != null) level().playSound(null, this, net.minecraft.sounds.SoundEvents.HORSE_SADDLE, source, 0.5f, 1);
 	}
 	@Override protected boolean canAddPassenger(Entity passenger) {
-		return passenger instanceof Player && !isOrderedToSit() && isSaddled() && isSaddleable()
+		return passenger instanceof Player && entityData.get(DEVOURED_PLAYER).isEmpty()
+			&& !isOrderedToSit() && isSaddled() && isSaddleable()
 			&& equipment.canSeat(passenger)
 			&& BionicRiding.pose(this, passenger, 1, yBodyRot) != null
 			&& BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger));
@@ -1996,6 +2053,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected void removePassenger(Entity passenger) {
 		super.removePassenger(passenger);
+		if (devour != null) devour.swallowedPlayer.onDismount(passenger);
 		equipment.passengerRemoved(passenger);
 	}
 	@Override @Nullable public LivingEntity getControllingPassenger() {
@@ -2008,6 +2066,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			: pose.anchor().subtract(position());
 	}
 	@Override protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+		if (DevouredPlayer.positionInside(this, passenger, move)) return;
 		var pose = BionicRiding.pose(this, passenger, 1, yBodyRot);
 		if (pose == null) { super.positionRider(passenger, move); return; }
 		Vec3 feet = pose.feet(passenger);
@@ -2049,16 +2108,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		Vec3 velocity = getDeltaMovement();
 		setDeltaMovement(blockedX ? 0 : velocity.x, blockedY ? 0 : velocity.y, blockedZ ? 0 : velocity.z);
 	}
-	@SuppressWarnings("deprecation") // Minecraft 1.21.1 chunk-presence check.
 	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
-		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)
-			for (int[] offset : net.minecraft.world.entity.vehicle.DismountHelper.offsetsForDirection(getDirection())) {
-				BlockPos pos = blockPosition().offset(offset[0] * radius, y, offset[1] * radius);
-				if (!level().hasChunkAt(pos) || !level().getFluidState(pos).isEmpty()) continue;
-				Vec3 safe = net.minecraft.world.entity.vehicle.DismountHelper.findSafeDismountLocation(passenger.getType(), level(), pos, true);
-				if (safe != null && !getBoundingBox().intersects(passenger.getDimensions(Pose.STANDING).makeBoundingBox(safe))) return safe;
-			}
-		return super.getDismountLocationForPassenger(passenger);
+		Vec3 safe = BionicRiding.safeDismount(this, passenger);
+		return safe != null ? safe : super.getDismountLocationForPassenger(passenger);
 	}
 	@Override protected Vec3 getRiddenInput(Player player, Vec3 movement) {
 		double forward = player.zza > 0 ? player.zza : player.zza * 0.25;

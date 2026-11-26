@@ -9,11 +9,8 @@ import net.minecraft.world.entity.ai.control.MoveControl;
 /** Switches a body with fewer than two grounded legs from continuous walking to slime-like hops. */
 public final class SlimeBionicMoveControl extends MoveControl {
 	private static final double MIN_WANTED_DISTANCE_SQR = 2.5e-7d;
-	private static final int MIN_JUMP_DELAY = 10;
-	private static final int RANDOM_JUMP_DELAY = 20;
 
 	private final SlimeBionicEntity bionic;
-	private int jumpDelay;
 
 	public SlimeBionicMoveControl(SlimeBionicEntity bionic) {
 		super(bionic);
@@ -22,6 +19,11 @@ public final class SlimeBionicMoveControl extends MoveControl {
 
 	@Override
 	public void tick() {
+		if (bionic.isDevourGroundAttack()) {
+			operation = Operation.WAIT;
+			stopOnGround();
+			return;
+		}
 		if (bionic.usesWildSlimeMovement()) return;
 		if (bionic.getAttackActionTick() > 0 && bionic.shouldPauseAttackMovement()) {
 			stopOnGround();
@@ -55,10 +57,8 @@ public final class SlimeBionicMoveControl extends MoveControl {
 			}
 
 			operation = Operation.WAIT;
-			if (jumpDelay-- <= 0) {
-				jumpDelay = MIN_JUMP_DELAY + bionic.getRandom().nextInt(RANDOM_JUMP_DELAY);
-				if (bionic.isAggressive() && !bionic.isTinySlimeBody())
-					jumpDelay = Math.max(1, jumpDelay / 3);
+			if (!bionic.waitForWalkingJump()) {
+				bionic.resetWalkingJumpDelay(bionic.isAggressive() && !bionic.isTinySlimeBody());
 				applyWantedSpeed();
 				bionic.getJumpControl().jump();
 				operation = Operation.JUMPING;

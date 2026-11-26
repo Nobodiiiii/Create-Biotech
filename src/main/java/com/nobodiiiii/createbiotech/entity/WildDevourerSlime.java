@@ -12,7 +12,7 @@ import net.minecraft.world.entity.ai.goal.Goal;
  * Its ordinary movement never issues a pathfinding or melee attack command. */
 final class WildDevourerSlime extends Goal {
 	private final SlimeBionicEntity body;
-	private int jumpDelay, turnDelay, pursuitTicks;
+	private int turnDelay, pursuitTicks;
 	private float direction;
 	private boolean active, wasOnGround;
 	float squish, oldSquish;
@@ -55,14 +55,13 @@ final class WildDevourerSlime extends Goal {
 		if (fluid && random.nextFloat() < 0.8f) body.getJumpControl().jump();
 		body.setSpeed((float) ((fluid ? 1.2 : 1.0) * body.getAttributeValue(Attributes.MOVEMENT_SPEED)));
 		if (!body.onGround()) return;
-		if (jumpDelay-- > 0) {
+		if (body.waitForWalkingJump()) {
 			body.setXxa(0);
 			body.setSpeed(0);
 			return;
 		}
-		jumpDelay = 10 + random.nextInt(20);
 		int size = body.wildSlimeSize();
-		if (pursuing && size > 1) jumpDelay /= 3;
+		body.resetWalkingJumpDelay(pursuing && size > 1);
 		body.getJumpControl().jump();
 		body.playSound(size == 1 ? SoundEvents.SLIME_JUMP_SMALL : SoundEvents.SLIME_JUMP, 0.4f * size,
 			((random.nextFloat() - random.nextFloat()) * 0.2f + 1) * (size == 1 ? 1.4f : 0.8f));

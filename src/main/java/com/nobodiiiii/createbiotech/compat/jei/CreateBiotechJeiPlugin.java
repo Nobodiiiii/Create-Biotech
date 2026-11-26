@@ -101,6 +101,9 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 				|| stack.is(CBItems.ENDERMAN_STOCK_KEEPER.get())
 				|| stack.is(CBItems.BORROWED_SURGICAL_TOOL.get())
 				|| stack.is(CBItems.BORROWED_CREATIVE_SURGICAL_TOOL.get())
+				|| stack.is(CBItems.SLIME_CULTURE_CHAMBER.get())
+				|| stack.is(CBItems.COMPUTER.get())
+				|| stack.is(CBItems.CREATIVE_COMPUTER.get())
 				|| stack.is(CBItems.HONEYCOMB_GAUGE_CLUSTER.get())).toList();
 		if (!hiddenItems.isEmpty())
 			manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, hiddenItems);

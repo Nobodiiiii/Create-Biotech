@@ -35,6 +35,7 @@ import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -47,14 +48,21 @@ public final class DevourGrowth {
 	private DevourGrowth() {}
 
 	static boolean canDevour(Mob hunter) {
-		return DevourerInventory.hasEmptySlot(hunter)
-			&& (!(hunter instanceof SlimeBionicEntity bionic) || bionic.hasDevourCapacity());
+		return !DevouredPlayer.isHoldingPlayer(hunter) && DevourerInventory.hasEmptySlot(hunter) && hasGrowthCapacity(hunter);
+	}
+
+	static boolean hasGrowthCapacity(Mob hunter) {
+		return !(hunter instanceof SlimeBionicEntity bionic) || bionic.hasDevourCapacity();
 	}
 
 	/** Death loot is reached after totems and cancelled deaths, including kills by inherited attacks. */
 	public static void handleDeathDrops(LivingDropsEvent event) {
 		var prey = event.getEntity();
 		if (!(prey.level() instanceof ServerLevel level)) return;
+		if (prey instanceof Player) {
+			if (event.getSource() instanceof DevouredPlayer.DigestionDamage digestion) digestion.recordDrops(event);
+			return;
+		}
 		if (!(event.getSource().getEntity() instanceof Mob hunter) || !hunter.isAlive()
 			|| !DevourerInventory.canCollect(hunter) || !canDevour(hunter)) return;
 		Mob recipient = hunter;
@@ -67,6 +75,14 @@ public final class DevourGrowth {
 		}
 		if (!event.isCanceled() && !event.getDrops().isEmpty())
 			recipient.getData(CBAttachmentTypes.DEVOURER_INVENTORY).collect(event.getDrops());
+	}
+
+	/** Called after hurt returns, once NeoForge has posted the entire drops event and spawned its final items. */
+	static void finishPlayerMeal(ServerLevel level, Mob hunter, ServerPlayer player, LivingDropsEvent drops) {
+		if (!hunter.isAlive() || hunter.level() != level || !hasGrowthCapacity(hunter)) return;
+		var recipient = absorb(level, hunter, player);
+		if (recipient != null && recipient.isAlive() && !drops.isCanceled() && !drops.getDrops().isEmpty())
+			recipient.getData(CBAttachmentTypes.DEVOURER_INVENTORY).collectSpawned(level, drops.getDrops());
 	}
 
 	@Nullable
@@ -85,11 +101,12 @@ public final class DevourGrowth {
 		}
 		var profile = MimicProfile.capture(donor);
 		if (profile == null) return null;
-		var meal = new DevourGrowthQueue.Meal(profile, prey.getBbWidth(), prey.getBbHeight(), UUID.randomUUID(),
+		var meal = new DevourGrowthQueue.Meal(profile, donor.getBbWidth(), donor.getBbHeight(), UUID.randomUUID(),
 			base.sources().get(anchor.source()).donorId(), anchor.cube(), hunter.getRandom().nextLong());
 		if (!meal.valid()) return null;
 		if (hunter instanceof SlimeBionicEntity bionic)
 			return bionic.queueGrowth(meal) ? bionic : null;
+		var devourer = (DevourerEntity) hunter;
 		var bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
 		if (bionic == null) return null;
 		// Preserve vanilla mob state (persistence, effects, name, motion, equipment and custom loot).
@@ -100,10 +117,12 @@ public final class DevourGrowth {
 		bionic.load(state);
 		bionic.getPersistentData().putBoolean("WildDevourer", true);
 		bionic.setAssembly(base);
+		bionic.inheritDevourer(devourer);
 		if (!bionic.queueGrowth(meal)) return null;
 		bionic.setHealth(bionic.getMaxHealth() * hunter.getHealth() / hunter.getMaxHealth());
 		SlimeMimicHandler.forceSetSlimeMimic(bionic, true);
 		if (!level.addFreshEntity(bionic)) return null;
+		DevouredPlayer.copyCooldowns(devourer, bionic);
 		hunter.discard();
 		return bionic;
 	}

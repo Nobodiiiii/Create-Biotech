@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.capturenet;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -39,7 +38,7 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 
 	private static final BehaviourType<ArmCaptureBehaviour> TYPE = new BehaviourType<>();
-	private static final String NET_TAG = "CreateBiotechCaptureNet";
+	static final String NET_TAG = "CreateBiotechCaptureNet";
 	private static final String MOTION_TAG = "CreateBiotechCaptureMotion";
 	private static final int SCAN_INTERVAL = 3;
 	private static final float SWEEP_SOUND_RPM_THRESHOLD = 128;
@@ -165,8 +164,7 @@ final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 
 	@Override
 	public void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
-		if (!net.isEmpty())
-			tag.put(NET_TAG, net.save(registries));
+		writeNet(tag, registries, net);
 		if (!clientPacket || (trackedMobId < 0 && swing == null))
 			return;
 		CompoundTag motion = new CompoundTag();
@@ -182,6 +180,11 @@ final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 			motion.putFloat("Progress", swingProgress);
 		}
 		tag.put(MOTION_TAG, motion);
+	}
+
+	static void writeNet(CompoundTag tag, HolderLookup.Provider registries, ItemStack net) {
+		if (!net.isEmpty())
+			tag.put(NET_TAG, net.save(registries));
 	}
 
 	@Override
@@ -269,15 +272,14 @@ final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	private boolean scan(ServerLevel level, CaptureNetItem captureNet, long now) {
 		Vec3 center = Vec3.atCenterOf(getPos());
 		int reach = captureRange();
-		AABB trackingArea = new AABB(getPos()).inflate(CBConfigs.SERVER.poweredCaptureNet.trackingRadius.get());
-		AABB searchArea = trackingArea.minmax(new AABB(center, center).inflate(reach));
+		double trackingReach = reach + 1.0;
+		AABB searchArea = new AABB(center, center).inflate(trackingReach);
 		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, searchArea, Mob::isAlive);
-		Mob nearest = findNearest(mobs, center, mob -> trackingArea.contains(mob.getBoundingBox().getCenter())
-			|| isWithinReach(mob, reach));
+		Mob nearest = findNearest(mobs, center, trackingReach);
 		int mobId = nearest == null ? -1 : nearest.getId();
 		boolean changed = trackedMobId != mobId;
 		trackedMobId = mobId;
-		if (nearest == null || !canCatch(level))
+		if (nearest == null || !isWithinReach(nearest, reach) || !canCatch(level))
 			return changed;
 
 		BioPackagerBlockEntity packager = getReadyPackager(level);
@@ -313,12 +315,13 @@ final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		return configured == 0 ? ArmBlockEntity.getRange() : configured;
 	}
 
-	private static @Nullable Mob findNearest(List<Mob> mobs, Vec3 center, Predicate<Mob> filter) {
+	private static @Nullable Mob findNearest(List<Mob> mobs, Vec3 center, double reach) {
 		Mob nearest = null;
+		double reachSquared = Mth.square(reach);
 		double bestDistance = Double.POSITIVE_INFINITY;
 		for (Mob mob : mobs) {
 			double distance = mob.getBoundingBox().getCenter().distanceToSqr(center);
-			if (distance < bestDistance && filter.test(mob)) {
+			if (distance <= reachSquared && distance < bestDistance) {
 				nearest = mob;
 				bestDistance = distance;
 			}

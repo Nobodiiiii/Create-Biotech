@@ -224,6 +224,7 @@ public class CBConfigs {
 		public final SurgicalTable surgicalTable;
 		public final CardboardBox cardboardBox;
 		public final SlimeMimic slimeMimic;
+		public final Devourer devourer;
 		public final GhastHotAirBalloon ghastHotAirBalloon;
 		public final ButterCat butterCat;
 		public final Automation automation;
@@ -257,6 +258,7 @@ public class CBConfigs {
 			surgicalTable = new SurgicalTable(builder);
 			cardboardBox = new CardboardBox(builder);
 			slimeMimic = new SlimeMimic(builder);
+			devourer = new Devourer(builder);
 			ghastHotAirBalloon = new GhastHotAirBalloon(builder);
 			butterCat = new ButterCat(builder);
 			automation = new Automation(builder);
@@ -284,7 +286,6 @@ public class CBConfigs {
 	public static class PoweredCaptureNet {
 		public final ModConfigSpec.BooleanValue consumeDurability;
 		public final ModConfigSpec.IntValue captureRange;
-		public final ModConfigSpec.IntValue trackingRadius;
 		public final ModConfigSpec.DoubleValue captureMargin;
 
 		PoweredCaptureNet(ModConfigSpec.Builder builder) {
@@ -293,12 +294,9 @@ public class CBConfigs {
 				.translation("create_biotech.configuration.poweredCaptureNet.consumeDurability")
 				.define("consumeDurability", false);
 			captureRange = builder.comment("Maximum distance from the block center to the creature's hitbox center, in blocks.",
-					"Set to zero to use Create's Mechanical Arm range.")
+					"Tracking starts one block beyond this range. Set to zero to use Create's Mechanical Arm range.")
 				.translation("create_biotech.configuration.poweredCaptureNet.captureRange")
 				.defineInRange("captureRange", 0, 0, 32);
-			trackingRadius = builder.comment("Extra blocks on each side of the block's tracking cube. The capture range is also scanned.")
-				.translation("create_biotech.configuration.poweredCaptureNet.trackingRadius")
-				.defineInRange("trackingRadius", 3, 0, 32);
 			captureMargin = builder.comment("Extra space along each axis of a creature's hitbox when testing net contact.")
 				.translation("create_biotech.configuration.poweredCaptureNet.captureMargin")
 				.defineInRange("captureMargin", 0.5, 0.0, 2.0);
@@ -404,6 +402,12 @@ public class CBConfigs {
 
 	public static class SlimeMimic extends CBCreatureConfigSections.SlimeMimic {
 		SlimeMimic(ModConfigSpec.Builder builder) {
+			super(builder);
+		}
+	}
+
+	public static class Devourer extends CBCreatureConfigSections.Devourer {
+		Devourer(ModConfigSpec.Builder builder) {
 			super(builder);
 		}
 	}

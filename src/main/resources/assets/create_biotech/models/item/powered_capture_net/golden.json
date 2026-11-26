@@ -1,0 +1,4 @@
+{
+  "parent": "create_biotech:item/powered_capture_net/assembly",
+  "visibility": { "net_golden": true, "net_bag": true }
+}

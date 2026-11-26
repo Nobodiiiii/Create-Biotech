@@ -5,6 +5,17 @@
     { "tag": "create_biotech:capture_nets" }
   ],
   "results": [
-    { "id": "create_biotech:powered_capture_net" }
+    {
+      "id": "create_biotech:powered_capture_net",
+      "components": {
+        "minecraft:block_entity_data": {
+          "id": "create_biotech:powered_capture_net",
+          "CreateBiotechCaptureNet": {
+            "id": "create_biotech:netherite_capture_net",
+            "count": 1
+          }
+        }
+      }
+    }
   ]
 }

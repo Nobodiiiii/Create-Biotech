@@ -4,8 +4,8 @@ import java.util.EnumSet;
 
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import net.minecraft.core.Direction;
-import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -35,8 +35,9 @@ public final class DevourAttackGoal extends Goal {
 	private static final double MIN_CLEARANCE = 0.25;
 	private static final double MAX_HORIZONTAL_SPEED = 0.8;
 	private static final int ASCENT_TICKS = 8;
-	private static final double MIN_DIVE_SPEED = 0.36;
+	private static final float AIR_VERTICAL_DRAG = 0.98F;
 	private final Mob hunter;
+	final DevouredPlayer swallowedPlayer;
 	private LivingEntity prey;
 	private int flightTicks;
 	private long reservedUntil;
@@ -46,12 +47,14 @@ public final class DevourAttackGoal extends Goal {
 	private double takeoffY;
 	private double apexY;
 	private double previousBottom;
+	private double airFallVelocity;
 	private float crushDamage;
 	private boolean clearedPrey;
 	private boolean diving;
 
 	DevourAttackGoal(Mob hunter) {
 		this.hunter = hunter;
+		swallowedPlayer = new DevouredPlayer(hunter);
 		setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP));
 	}
 
@@ -64,6 +67,8 @@ public final class DevourAttackGoal extends Goal {
 	static boolean isPrey(Mob hunter, LivingEntity target, int size) {
 		if (size <= 0 || protectedPrey(target) || target == hunter
 			|| !EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(target) || hunter.isAlliedTo(target)) return false;
+		if (target instanceof Player && (!CBConfigs.SERVER.devourer.canHuntPlayers(size) || DevouredPlayer.isInside(hunter, target)))
+			return false;
 		double edge = EntityType.SLIME.getWidth() * size * hunter.getScale();
 		var box = target.getBoundingBox();
 		return box.getXsize() * box.getYsize() * box.getZsize() <= edge * edge * edge + 1e-6;
@@ -77,7 +82,7 @@ public final class DevourAttackGoal extends Goal {
 
 	/** A contact or arm swing can supply its actual damage before the next goal-selector pass. */
 	boolean replaceContact(LivingEntity target, float damage) {
-		if (running) return DevourGrowth.canDevour(hunter);
+		if (running) return isCrushing();
 		if (!(hunter.level() instanceof ServerLevel level) || !available(level)
 			|| !canLaunchAt(level, target, damage)) return false;
 		if (prey == null) reservedUntil = level.getGameTime() + 4;
@@ -96,13 +101,22 @@ public final class DevourAttackGoal extends Goal {
 	private boolean validPrey(LivingEntity target) {
 		return target != null && target.isAlive() && hunter.isAlive() && target.level() == hunter.level()
 			&& !hunter.isPassenger() && !hunter.hasControllingPassenger()
-			&& isPrey(hunter, target, size(hunter)) && hunter.canAttack(target) && DevourGrowth.canDevour(hunter);
+			&& !swallowedPlayer.hasCaptive() && isPrey(hunter, target, size(hunter)) && hunter.canAttack(target)
+			&& (!(target instanceof ServerPlayer player) || swallowedPlayer.canSwallow(player)) && hasCapacity(target);
+	}
+
+	private boolean hasCapacity(LivingEntity target) {
+		return target instanceof ServerPlayer ? DevourGrowth.hasGrowthCapacity(hunter) : DevourGrowth.canDevour(hunter);
 	}
 
 	private boolean canLaunchAt(ServerLevel level, LivingEntity target, float damage) {
-		// Only players have difficulty-scaled damage. Healthy mobs need no armor/enchantment query on pursuit ticks.
-		return damage > 0 && (target instanceof Player || target.getHealth() <= damage)
-			&& inLaunchRange(hunter.getBoundingBox(), target.getBoundingBox()) && validPrey(target) && hunter.hasLineOfSight(target)
+		return damage > 0 && inLaunchRange(hunter.getBoundingBox(), target.getBoundingBox())
+			&& validPrey(target) && canCrush(level, target, damage) && hunter.hasLineOfSight(target);
+	}
+
+	private boolean canCrush(ServerLevel level, LivingEntity target, float damage) {
+		// The impact holds players alive. Ordinary prey still need to be weakened before a crush.
+		return target instanceof ServerPlayer || target.getHealth() <= damage
 			&& target.getHealth() <= estimatedDamage(level, target, hunter.damageSources().mobAttack(hunter), damage);
 	}
 
@@ -114,7 +128,11 @@ public final class DevourAttackGoal extends Goal {
 	}
 
 	boolean pressing(Entity other) {
-		return running && flightTicks > 0 && other == prey && DevourGrowth.canDevour(hunter);
+		return flightTicks > 0 && other == prey && isCrushing();
+	}
+
+	boolean isCrushing() {
+		return running && hasCapacity(prey);
 	}
 
 	@Override public boolean canUse() {
@@ -172,15 +190,24 @@ public final class DevourAttackGoal extends Goal {
 				return;
 			}
 			if (!hunter.onGround()) return;
+			boolean waitingForJump = hunter instanceof DevourerEntity devourer
+				? devourer.waitForWalkingJump() : ((SlimeBionicEntity) hunter).waitForWalkingJump();
+			if (waitingForJump) {
+				// The landing deadline pauses while the grounded hunter waits for its next hop.
+				groundDeadline++;
+				return;
+			}
 			double desired = Mth.clamp(target.maxY - body.minY + 2.0, 3.0, MAX_JUMP_HEIGHT);
 			double room = Shapes.collide(Direction.Axis.Y, body, level.getBlockCollisions(hunter, body.expandTowards(0, desired, 0)), desired);
 			if (room < Math.max(0.8, target.maxY - body.minY + MIN_CLEARANCE)
-				|| prey.getHealth() > estimatedDamage(level, prey, hunter.damageSources().mobAttack(hunter), crushDamage * 0.5f)) {
+				|| !canCrush(level, prey, crushDamage * 0.5f)) {
 				fail(level);
 				return;
 			}
 			takeoffY = previousBottom = body.minY;
 			apexY = takeoffY + room;
+			if (hunter instanceof DevourerEntity devourer) devourer.resetWalkingJumpDelay();
+			else ((SlimeBionicEntity) hunter).resetDevourJumpDelay();
 			hunter.setOnGround(false);
 		} else {
 			boolean over = body.maxX > target.minX && body.minX < target.maxX && body.maxZ > target.minZ && body.minZ < target.maxZ;
@@ -198,13 +225,19 @@ public final class DevourAttackGoal extends Goal {
 				fail(level);
 				return;
 			}
-			if (flightTicks >= ASCENT_TICKS || hunter.verticalCollision && !hunter.verticalCollisionBelow) diving = true;
+			boolean hitCeiling = hunter.verticalCollision && !hunter.verticalCollisionBelow;
+			if (!diving && (flightTicks >= ASCENT_TICKS || hitCeiling)) {
+				diving = true;
+				airFallVelocity = hitCeiling ? 0.0 : Math.max(0.0, body.minY - previousBottom);
+			}
 		}
 
-		// Each ascent step aims at a point on the arc. Switch directly to the dive at its apex.
+		// Each ascent step aims at a point on the arc. Gravity takes over at the apex.
 		double vertical;
 		if (diving) {
-			vertical = Math.min(hunter.getDeltaMovement().y, -MIN_DIVE_SPEED);
+			// Preserve the air fall when swimming or levitation would otherwise stall the press.
+			airFallVelocity = Math.min(0.0, (airFallVelocity - LivingEntity.DEFAULT_BASE_GRAVITY) * AIR_VERTICAL_DRAG);
+			vertical = Math.min(hunter.getDeltaMovement().y, airFallVelocity);
 		} else {
 			double remaining = 1.0 - (flightTicks + 1.0) / ASCENT_TICKS;
 			vertical = takeoffY + (apexY - takeoffY) * (1.0 - remaining * remaining) - body.minY;
@@ -236,6 +269,11 @@ public final class DevourAttackGoal extends Goal {
 
 	private void hit(ServerLevel level, float damage) {
 		LivingEntity target = prey;
+		if (target instanceof ServerPlayer player) {
+			if (swallowedPlayer.swallow(player)) hunter.playSound(SoundEvents.SLIME_ATTACK);
+			else fail(level);
+			return;
+		}
 		var source = new CrushDamage(hunter, target);
 		if (!target.hurt(source, damage)) return;
 		hunter.playSound(SoundEvents.SLIME_ATTACK);
@@ -245,17 +283,11 @@ public final class DevourAttackGoal extends Goal {
 		} else if (source.killedTarget && !target.isRemoved()) {
 			// As in Frog's ShootTongue, finish removal after hurt has delivered the ordinary death and loot.
 			target.remove(Entity.RemovalReason.KILLED);
-			// Removing a tracked entity notifies its observers. The victim's own connection tracks
-			// its local player separately and has already received the vanilla death-screen packet.
-			if (target instanceof ServerPlayer player)
-				player.connection.send(new ClientboundRemoveEntitiesPacket(player.getId()));
 		}
 	}
 
-	static float estimatedDamage(ServerLevel level, LivingEntity target, DamageSource source, float damage) {
+	private static float estimatedDamage(ServerLevel level, LivingEntity target, DamageSource source, float damage) {
 		if (target.isInvulnerableTo(source) || target.isDamageSourceBlocked(source)) return 0;
-		if (target instanceof Player player)
-			damage = Math.max(0, source.type().scaling().getScalingFunction().scaleDamage(source, player, damage, level.getDifficulty()));
 		if (!source.is(DamageTypeTags.BYPASSES_ARMOR)) damage = CombatRules.getDamageAfterAbsorb(target, damage, source, target.getArmorValue(),
 			(float) target.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
 		var resistance = target.getEffect(MobEffects.DAMAGE_RESISTANCE);

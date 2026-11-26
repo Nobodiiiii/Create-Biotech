@@ -1,22 +1,24 @@
 package com.nobodiiiii.createbiotech.entity;
 
-import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
 import com.nobodiiiii.createbiotech.entity.trait.DevourAnatomy;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -25,6 +27,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,7 +38,9 @@ import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class DevourerEntity extends Slime {
 	private static final String CONTACT_DAMAGE_MIGRATED = "DevourContactDamageMigrated";
-	private DevourAttackGoal devour;
+	static final EntityDataAccessor<Optional<UUID>> DEVOURED_PLAYER = SynchedEntityData.defineId(
+		DevourerEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+	DevourAttackGoal devour;
 	private static final Set<Slime> NATURAL_CANDIDATES =
 		Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
@@ -53,6 +58,35 @@ public class DevourerEntity extends Slime {
 	}
 
 	public static double maxHealthForSize(int size) { return 2.0d * size * size; }
+
+	@Override
+	protected void defineSynchedData(SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
+		builder.define(DEVOURED_PLAYER, Optional.empty());
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (devour != null) devour.swallowedPlayer.tick();
+	}
+
+	@Override
+	protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+		if (!DevouredPlayer.positionInside(this, passenger, move)) super.positionRider(passenger, move);
+	}
+
+	@Override
+	protected void removePassenger(Entity passenger) {
+		super.removePassenger(passenger);
+		if (devour != null) devour.swallowedPlayer.onDismount(passenger);
+	}
+
+	@Override
+	public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
+		Vec3 safe = BionicRiding.safeDismount(this, passenger);
+		return safe != null ? safe : super.getDismountLocationForPassenger(passenger);
+	}
 
 	@Override
 	public void setSize(int size, boolean heal) {
@@ -111,11 +145,23 @@ public class DevourerEntity extends Slime {
 		goalSelector.addGoal(0, devour);
 	}
 
-	@Override
-	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
-		if (DevourerInventory.tryOpen(this, player, hand))
-			return InteractionResult.sidedSuccess(level().isClientSide);
-		return super.mobInteract(player, hand);
+	int walkingJumpDelay() {
+		return getMoveControl() instanceof SlimeMoveControl control ? control.jumpDelay : 0;
+	}
+
+	boolean waitForWalkingJump() {
+		if (!(getMoveControl() instanceof SlimeMoveControl control) || control.jumpDelay <= 0) return false;
+		// SlimeKeepOnJumpingGoal requests movement on full AI ticks. Floating requests it every tick.
+		if (tickCount <= 1 || (tickCount + getId()) % 2 == 0 || isInWater() || isInLava())
+			control.setWantedMovement(1.0);
+		return true;
+	}
+
+	void resetWalkingJumpDelay() {
+		if (getMoveControl() instanceof SlimeMoveControl control) {
+			int delay = getJumpDelay();
+			control.jumpDelay = control.isAggressive ? delay / 3 : delay;
+		}
 	}
 
 	@Override

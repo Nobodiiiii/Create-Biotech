@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.Combination
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.BionicRiding;
+import com.nobodiiiii.createbiotech.entity.DevouredPlayer;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicInventoryContainer;
 import net.minecraft.nbt.CompoundTag;
@@ -190,6 +191,7 @@ public final class BionicEquipment {
 			: saddles.keySet().stream().min(ORDER).orElse(null);
 	}
 	@Nullable public PassengerSeat passengerSeat(Entity passenger) {
+		if (DevouredPlayer.isInside(entity, passenger)) return null;
 		receive();
 		var assigned = passengers.get(passenger.getUUID());
 		if (assigned != null && saddled(assigned.carrier()) && canSaddle(assigned.carrier())

@@ -1,0 +1,145 @@
+{
+  "credit": "Create: Biotech item model using the powered capture net's resting pose",
+  "parent": "create:item/mechanical_arm",
+  "loader": "neoforge:composite",
+  "transform": {
+    "translation": [0, -1, 0]
+  },
+  "display": {
+    "gui": {
+      "rotation": [30, 135, 0],
+      "translation": [2.25, 3.9, 0],
+      "scale": [0.42, 0.42, 0.42]
+    },
+    "fixed": {
+      "rotation": [0, 90, 0],
+      "translation": [3.2, 4.25, -0.75],
+      "scale": [0.45, 0.45, 0.45]
+    }
+  },
+  "visibility": {
+    "net_wooden": false,
+    "net_stone": false,
+    "net_iron": false,
+    "net_golden": false,
+    "net_diamond": false,
+    "net_netherite": false,
+    "net_bag": false
+  },
+  "children": {
+    "pedestal": {
+      "parent": "create_biotech:block/powered_capture_net"
+    },
+    "cog": {
+      "parent": "create:block/mechanical_arm/cog"
+    },
+    "arm_base": {
+      "parent": "create:block/mechanical_arm/base",
+      "transform": {
+        "translation": [0.5, 0.75, 0.5]
+      }
+    },
+    "lower_arm": {
+      "parent": "create:block/mechanical_arm/lower_body",
+      "transform": {
+        "translation": [0.5, 0.875, 0.5],
+        "rotation": [135, 0, 0],
+        "origin": "corner"
+      }
+    },
+    "upper_arm": {
+      "parent": "create:block/mechanical_arm/upper_body",
+      "transform": {
+        "translation": [0.5, 1.493718434, 1.118718434]
+      }
+    },
+    "claw_base": {
+      "parent": "create_biotech:block/powered_capture_net/claw_base",
+      "transform": {
+        "translation": [0.5, 1.493718434, 0.181218434],
+        "rotation": [-45, 0, 0],
+        "origin": "corner"
+      }
+    },
+    "upper_grip": {
+      "parent": "create:block/mechanical_arm/upper_claw_grip",
+      "transform": {
+        "translation": [0.5, 1.272747564, -0.128140783],
+        "rotation": [-45, 0, 0],
+        "origin": "corner"
+      }
+    },
+    "lower_grip": {
+      "parent": "create:block/mechanical_arm/lower_claw_grip",
+      "transform": {
+        "translation": [0.5, 1.184359217, -0.039752436],
+        "rotation": [-45, 0, 0],
+        "origin": "corner"
+      }
+    },
+    "net_wooden": {
+      "parent": "create_biotech:item/capture_net/wooden_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_stone": {
+      "parent": "create_biotech:item/capture_net/stone_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_iron": {
+      "parent": "create_biotech:item/capture_net/iron_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_golden": {
+      "parent": "create_biotech:item/capture_net/golden_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_diamond": {
+      "parent": "create_biotech:item/capture_net/diamond_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_netherite": {
+      "parent": "create_biotech:item/capture_net/netherite_frame",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    },
+    "net_bag": {
+      "parent": "create_biotech:item/capture_net/bag",
+      "render_type": "create_biotech:capture_net_mesh",
+      "transform": {
+        "translation": [0, 1.309359217, -0.628140783],
+        "rotation": [-135, 0, 0],
+        "scale": 0.85,
+        "origin": [0.5, -0.125, 0.5]
+      }
+    }
+  }
+}

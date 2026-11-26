@@ -10,8 +10,10 @@ import java.util.Map;
 import java.util.Set;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.capturenet.PoweredCaptureNetBlock;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -133,11 +135,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.EMPTY_CARDBOARD_BOX.get()),
 			visible(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()),
 			visible(CBItems.BIO_PACKAGER.get()),
-			visible(CBItems.POWERED_CAPTURE_NET.get()),
 			visible(CBItems.PETRI_DISH.get()),
-			visible(CBItems.SLIME_CULTURE_CHAMBER.get()),
-			visible(CBItems.COMPUTER.get()),
-			visible(CBItems.CREATIVE_COMPUTER.get()),
 			visible(CBItems.SURGICAL_TABLE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),
@@ -166,6 +164,7 @@ public class CBCreativeModeTabs {
 
 		List<TabEntry> devicesAndEquipment = new ArrayList<>(List.of(
 			visible(CBItems.SPIDER_ASSEMBLY_TABLE.get()),
+			poweredCaptureNet(),
 			visible(CBItems.EMPTY_MAGMA_CUBE_BURNER.get()),
 			visible(CBItems.MAGMA_CUBE_BURNER.get()),
 			visible(CBItems.AUTOMATIC_FISH_RELEASE_MACHINE.get()),
@@ -251,6 +250,13 @@ public class CBCreativeModeTabs {
 
 	private static TabEntry visible(Item item) {
 		return new TabEntry(item.getDefaultInstance(), false);
+	}
+
+	private static TabEntry poweredCaptureNet() {
+		ItemStack stack = CBItems.POWERED_CAPTURE_NET.get().getDefaultInstance();
+		PoweredCaptureNetBlock.storeMountedNet(stack, CBItems.NETHERITE_CAPTURE_NET.get().getDefaultInstance(),
+			RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY));
+		return new TabEntry(stack, false);
 	}
 
 	private static TabEntry searchOnly(Item item) {

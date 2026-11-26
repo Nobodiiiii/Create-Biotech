@@ -206,6 +206,7 @@ public class CreateBiotechClient {
 			CBClientTooltipRegistration.registerItemTooltips();
 			CBClientModelRegistration.registerCardboardBoxModelProperties();
 			CBClientModelRegistration.registerSurgicalKitModelProperties();
+			CBClientModelRegistration.registerPoweredCaptureNetModelProperties();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
 			PonderIndex.addPlugin(new CreatePonderCompatPlugin());
 			CardboardBoxPartials.register();
