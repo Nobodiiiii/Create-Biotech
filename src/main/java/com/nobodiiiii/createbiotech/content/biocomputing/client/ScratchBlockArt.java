@@ -24,40 +24,42 @@ final class ScratchBlockArt {
 	private static final int OUTLINE_V = 128;
 
 	enum Outline {
-		NONE(0), ACTIVE(0xffc9ab74), PROBLEM(0xffeb8f80);
+		NONE(0), ACTIVE(0xffc9ab74), PROBLEM(0xffeb8f80), MISMATCH(0xffffc084);
 
 		private final int tint;
 
 		Outline(int tint) { this.tint = tint; }
+
+		int tint() { return tint; }
 	}
 
 	enum Region {
-		HAT(0, 0, 75, 39, 50, 5, 12, 8, 4),
-		STACK(80, 0, 84, 30, 26, 5, 6, 7, 4),
-		MOUTH(168, 0, 82, 30, 42, 5, 6, 7, 4),
-		FOOT(256, 0, 82, 18, 42, 5, 6, 7, 4),
-		CAP(344, 0, 84, 26, 26, 5, 6, 4, 0),
-		RAIL(432, 0, 18, 6, 3, 3, 0, 0, 0),
-		MIDDLE(0, 48, 82, 24, 42, 5, 8, 7, 4),
+		HAT(0, 0, 64, 26, 50, 5, 9, 8, 4),
+		STACK(72, 0, 64, 26, 26, 5, 6, 7, 4),
+		MOUTH(144, 0, 64, 26, 42, 5, 6, 7, 4),
+		FOOT(216, 0, 64, 18, 42, 5, 6, 7, 4),
+		CAP(288, 0, 64, 22, 26, 5, 6, 4, 0),
+		MIDDLE(360, 0, 64, 20, 42, 5, 8, 7, 4),
+		RAIL(432, 0, 16, 15, 3, 3, 0, 0, 0),
 
-		ANY(0, 4, 4, 4, 4),
-		NUMBER(40, 3, 3, 3, 3),
-		TEXT(80, 2, 8, 7, 2),
-		BOOLEAN(120, 11, 11, 7, 7),
-		ITEM(160, 5, 5, 5, 5),
-		LIST(200, 5, 5, 4, 4),
-		MAP(240, 5, 5, 5, 5);
+		ANY(0, 20, 4, 4, 4, 4),
+		NUMBER(40, 16, 3, 3, 3, 3),
+		TEXT(80, 16, 2, 8, 7, 2),
+		BOOLEAN(120, 16, 11, 11, 7, 7),
+		ITEM(160, 16, 5, 5, 5, 5),
+		LIST(200, 20, 5, 5, 4, 4),
+		MAP(240, 20, 5, 5, 5, 5);
 
 		private final int[] u, v;
 		private final int left, right, top, bottom, tab;
 
-		Region(int u, int left, int right, int top, int bottom) {
-			this(u, 80, 32, 15, left, right, top, bottom, 0);
+		Region(int u, int height, int left, int right, int top, int bottom) {
+			this(u, 40, 32, height, left, right, top, bottom, 0);
 		}
 
 		Region(int u, int v, int width, int height, int left, int right, int top, int bottom, int tab) {
-			this.u = new int[] {u, u + left, u + width - right, u + width};
-			this.v = new int[] {v, v + top, v + height - bottom, v + height};
+			this.u = cuts(u, width, left, right);
+			this.v = cuts(v, height, top, bottom);
 			this.left = left;
 			this.right = right;
 			this.top = top;
@@ -109,8 +111,12 @@ final class ScratchBlockArt {
 	}
 
 	private static int[] cuts(int origin, int length, int first, int last) {
-		first = Math.min(first, Math.max(0, length - last - 1));
-		last = Math.min(last, Math.max(0, length - first - 1));
+		int caps = first + last;
+		int available = Math.max(0, length - 1);
+		if (caps > available) {
+			first = first * available / caps;
+			last = last * available / caps;
+		}
 		return new int[] {origin, origin + first, origin + length - last, origin + length};
 	}
 

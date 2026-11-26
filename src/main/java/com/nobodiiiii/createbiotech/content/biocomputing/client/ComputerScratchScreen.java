@@ -43,7 +43,6 @@ import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Inp
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Location;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.LoosePoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Tile;
-import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchPanelArt.Grain;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchPanelArt.PanelButton;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchPanelArt.Symbol;
 import com.nobodiiiii.createbiotech.foundation.gui.CanvasViewport;
@@ -71,9 +70,16 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private static final int PANE_GAP = 6;
 	private static final int TITLE_HEIGHT = 17;
 	private static final int TOOLBAR_HEIGHT = 25;
+	private static final int TOOLBAR_BUTTON_WIDTH = 50;
+	private static final int BODY_TOP = 24;
+	private static final int SIDEBAR_WIDTH = 126;
+	private static final int CATEGORY_TAB_HEIGHT = 18;
+	private static final int WORKSPACE_HEADER_HEIGHT = 19;
+	private static final int CONSOLE_HEIGHT = 43;
 	private static final int CONSOLE_TAB_HEIGHT = 17;
 	private static final int CONSOLE_BODY_OFFSET = 20;
 	private static final int INVENTORY_COLUMNS = 9;
+	private static final int INVENTORY_SLOT_SIZE = 18;
 	private static final List<Category> CATEGORIES = List.of(Category.values());
 
 	private enum ConsoleMode { OUTPUT, VARIABLES, IO, INVENTORY }
@@ -89,8 +95,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private long validatedRevision = -1;
 	private Op unavailable;
 	private ScratchCanvas canvas;
+	private float panelScale = 1;
 	private Rect paletteArea, workspaceArea, canvasArea, consoleArea, consoleBody, toolbarArea;
-	@Nullable
 	private Rect libraryArea;
 	private final PanelButton[] tabs = new PanelButton[CATEGORIES.size()];
 	private final PanelButton[] consoleTabs = new PanelButton[ConsoleMode.values().length];
@@ -129,10 +135,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		int rightMargin = MARGIN;
 		if (ModList.get().isLoaded("jei"))
 			rightMargin = Math.max(MARGIN, Math.min(Math.clamp(width / 4, 90, 170), width - MIN_EDITOR_WIDTH - MARGIN));
-		imageWidth = Math.min(560, width - MARGIN - rightMargin);
-		imageHeight = Math.min(420, height - 2 * MARGIN);
+		imageWidth = ScratchPanelArt.BACKGROUND_WIDTH;
+		imageHeight = ScratchPanelArt.BACKGROUND_HEIGHT;
+		panelScale = Math.min(1, Math.min(Math.max(1, width - MARGIN - rightMargin) / (float) imageWidth,
+			Math.max(1, height - 2 * MARGIN) / (float) imageHeight));
 		super.init();
-		leftPos = (width + MARGIN - rightMargin - imageWidth) / 2;
+		leftPos = (width + MARGIN - rightMargin - getXSize()) / 2;
+		topPos = (height - getYSize()) / 2;
 		drag = null;
 		inventoryPick = null;
 		panButton = -1;
@@ -143,23 +152,21 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		rebuildPalette();
 
 		initToolbar();
-		int sideWidth = paletteArea.width() + 4;
-		int halfTab = (sideWidth - 2) / 2;
-		int tabHeight = categoryTabHeight();
+		int halfTab = (SIDEBAR_WIDTH - 2) / 2;
 		for (int i = 0; i < CATEGORIES.size(); i++) {
 			Category option = CATEGORIES.get(i);
 			boolean fullRow = i == CATEGORIES.size() - 1 && CATEGORIES.size() % 2 == 1;
 			int tabX = leftPos + PANEL_PADDING + (i % 2) * (halfTab + 2);
-			int tabY = workspaceArea.y() + (i / 2) * (tabHeight + 2);
-			int tabW = fullRow ? sideWidth : i % 2 == 0 ? halfTab : sideWidth - halfTab - 2;
-			tabs[i] = addRenderableWidget(new PanelButton(new Rect(tabX, tabY, tabW, tabHeight),
+			int tabY = workspaceArea.y() + (i / 2) * (CATEGORY_TAB_HEIGHT + 2);
+			int tabW = fullRow ? SIDEBAR_WIDTH : halfTab;
+			tabs[i] = addRenderableWidget(new PanelButton(new Rect(tabX, tabY, tabW, CATEGORY_TAB_HEIGHT),
 				categoryName(option), ScratchBlockArt.tint(option), () -> select(option)));
 			tabs[i].selected = option == category;
 			tabs[i].setTooltip(Tooltip.create(categoryName(option)));
 		}
 
 		int cx = consoleArea.x() + 3;
-		int[] modeWidths = consoleArea.width() < 260 ? new int[] {35, 39, 24, 45} : new int[] {46, 46, 42, 53};
+		int[] modeWidths = {46, 46, 42, 53};
 		ConsoleMode[] modes = ConsoleMode.values();
 		for (int i = 0; i < modes.length; i++) {
 			ConsoleMode mode = modes[i];
@@ -176,25 +183,24 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private void initToolbar() {
-		boolean compact = imageWidth < 320;
-		int buttonWidth = compact ? 18 : 50;
+		int buttonWidth = TOOLBAR_BUTTON_WIDTH;
 		int y = toolbarArea.y() + 3;
 		int x = leftPos + PANEL_PADDING;
-		PanelButton copy = iconButton(new Rect(x, y, buttonWidth, 18), "copy", Symbol.COPY, compact, this::copyProgram);
+		PanelButton copy = iconButton(new Rect(x, y, buttonWidth, 18), "copy", Symbol.COPY, false, this::copyProgram);
 		copy.setTooltip(Tooltip.create(text("copy_tooltip")));
 		x += buttonWidth + 3;
-		PanelButton paste = iconButton(new Rect(x, y, buttonWidth, 18), "paste", Symbol.PASTE, compact, this::pasteProgram);
+		PanelButton paste = iconButton(new Rect(x, y, buttonWidth, 18), "paste", Symbol.PASTE, false, this::pasteProgram);
 		paste.setTooltip(Tooltip.create(text("paste_tooltip")));
 		PanelButton help = iconButton(new Rect(x + buttonWidth + 3, y, 18, 18), "help_title", Symbol.HELP, true, () -> {});
 		help.setTooltip(Tooltip.create(text("help")));
 
 		x = toolbarArea.right() - PANEL_PADDING - buttonWidth;
-		save = iconButton(new Rect(x, y, buttonWidth, 18), "save", Symbol.SAVE, compact, this::saveProgram);
+		save = iconButton(new Rect(x, y, buttonWidth, 18), "save", Symbol.SAVE, false, this::saveProgram);
 		x -= buttonWidth + 3;
-		stop = iconButton(new Rect(x, y, buttonWidth, 18), "stop", Symbol.STOP, compact, this::stopProgram);
+		stop = iconButton(new Rect(x, y, buttonWidth, 18), "stop", Symbol.STOP, false, this::stopProgram);
 		x -= buttonWidth + 3;
-		run = iconButton(new Rect(x, y, buttonWidth, 18), "run", Symbol.RUN, compact, this::runProgram);
-		iconButton(new Rect(workspaceArea.right() - 22, workspaceArea.y() + 2, 19, workspaceHeaderHeight() - 2),
+		run = iconButton(new Rect(x, y, buttonWidth, 18), "run", Symbol.RUN, false, this::runProgram);
+		iconButton(new Rect(workspaceArea.right() - 22, workspaceArea.y() + 2, 19, WORKSPACE_HEADER_HEIGHT - 2),
 			"reset_view", Symbol.CENTER, true, this::resetView);
 	}
 
@@ -207,39 +213,28 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private void layoutAreas() {
 		int left = leftPos + PANEL_PADDING;
 		int right = leftPos + imageWidth - PANEL_PADDING;
-		int bodyY = topPos + (imageHeight < 255 ? 21 : 24);
-		int sideWidth = Math.clamp(imageWidth * 26 / 100, 70, 141);
-		int workspaceX = left + sideWidth + PANE_GAP;
-		boolean dockedConsole = right - workspaceX >= 224;
+		int bodyY = topPos + BODY_TOP;
+		int workspaceX = left + SIDEBAR_WIDTH + PANE_GAP;
 		toolbarArea = new Rect(leftPos, topPos + imageHeight - TOOLBAR_HEIGHT, imageWidth, TOOLBAR_HEIGHT);
 		int bottom = toolbarArea.y() - PANE_GAP;
-		int normalConsoleHeight = Math.clamp(43 + (imageHeight - 302) / 6, 36, 64);
-		int consoleHeight = consoleMode == ConsoleMode.INVENTORY ? 30 + 4 * inventorySlotSize() : normalConsoleHeight;
-		int consoleX = dockedConsole ? workspaceX : left;
-		consoleArea = new Rect(consoleX, bottom - consoleHeight, right - consoleX, consoleHeight);
-		consoleBody = new Rect(consoleX + 3, consoleArea.y() + CONSOLE_BODY_OFFSET, consoleArea.width() - 6,
+		int consoleHeight = consoleMode == ConsoleMode.INVENTORY ? 30 + 4 * INVENTORY_SLOT_SIZE : CONSOLE_HEIGHT;
+		consoleArea = new Rect(workspaceX, bottom - consoleHeight, right - workspaceX, consoleHeight);
+		consoleBody = new Rect(workspaceX + 3, consoleArea.y() + CONSOLE_BODY_OFFSET, consoleArea.width() - 6,
 			consoleHeight - CONSOLE_BODY_OFFSET - 3);
-		libraryArea = dockedConsole ? new Rect(left, bottom - normalConsoleHeight, sideWidth, normalConsoleHeight) : null;
+		libraryArea = new Rect(left, bottom - CONSOLE_HEIGHT, SIDEBAR_WIDTH, CONSOLE_HEIGHT);
 		int workspaceBottom = consoleArea.y() - PANE_GAP;
-		workspaceArea = new Rect(workspaceX, bodyY, right - workspaceX, Math.max(0, workspaceBottom - bodyY));
-		int headerHeight = workspaceHeaderHeight();
-		canvasArea = new Rect(workspaceX + 2, bodyY + 2 + headerHeight, workspaceArea.width() - 4,
-			Math.max(0, workspaceArea.height() - headerHeight - 4));
+		workspaceArea = new Rect(workspaceX, bodyY, right - workspaceX, workspaceBottom - bodyY);
+		canvasArea = new Rect(workspaceX + 2, bodyY + 2 + WORKSPACE_HEADER_HEIGHT, workspaceArea.width() - 4,
+			workspaceArea.height() - WORKSPACE_HEADER_HEIGHT - 4);
 		int tabRows = (tabs.length + 1) / 2;
-		int paletteY = bodyY + tabRows * (categoryTabHeight() + 2) + 3;
-		int paletteBottom = libraryArea == null ? workspaceBottom : libraryArea.y() - PANE_GAP;
-		paletteArea = new Rect(left + 2, paletteY + 2, sideWidth - 4, Math.max(0, paletteBottom - paletteY - 4));
+		int paletteY = bodyY + tabRows * (CATEGORY_TAB_HEIGHT + 2) + 3;
+		int paletteBottom = libraryArea.y() - PANE_GAP;
+		paletteArea = new Rect(left + 2, paletteY + 2, SIDEBAR_WIDTH - 4, paletteBottom - paletteY - 4);
 		paletteScroll = Math.min(paletteScroll, paletteLimit());
 	}
 
-	private int categoryTabHeight() { return imageHeight < 255 ? 12 : imageHeight < 270 ? 14 : 18; }
-	private int workspaceHeaderHeight() { return imageHeight < 255 ? 16 : 19; }
-	private int inventorySlotSize() { return imageHeight < 255 ? 16 : 18; }
-
 	private void resetView() {
 		viewport.reset();
-		if (canvasArea.width() < 250)
-			viewport.zoomAt(0, 0, canvasArea.width() < 160 ? -6 : -3);
 	}
 
 	private void select(Category option) {
@@ -502,39 +497,46 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			|| menu.snapshot().channels().stream().anyMatch(channel -> channel.output() > 0);
 		reload.visible = canReload();
 		reload.active = pendingAction == null;
-		super.render(graphics, mouseX, mouseY, partialTick);
+		int panelX = (int) Math.floor(panelCoordinate(mouseX, leftPos));
+		int panelY = (int) Math.floor(panelCoordinate(mouseY, topPos));
+		renderTransparentBackground(graphics);
+		graphics.pose().pushPose();
+		graphics.pose().translate(leftPos, topPos, 0);
+		graphics.pose().scale(panelScale, panelScale, 1);
+		graphics.pose().translate(-leftPos, -topPos, 0);
+		super.render(graphics, panelX, panelY, partialTick);
 		if (drag != null && (drag.source == null || drag.moved)) {
 			graphics.pose().pushPose();
 			graphics.pose().translate(0, 0, 250);
-			drag.preview.render(graphics, mouseX + 7, mouseY + 7, 1);
+			drag.preview.render(graphics, panelX + 7, panelY + 7, 1);
 			graphics.pose().popPose();
 		}
-		if (inventoryPick != null) {
-			if (inventoryIndexAt(mouseX, mouseY) != inventoryPick.index()) {
-				graphics.pose().pushPose();
-				graphics.pose().translate(0, 0, 250);
-				graphics.renderItem(inventoryPick.stack(), mouseX - 8, mouseY - 8);
-				graphics.pose().popPose();
-			}
-		} else {
-			int index = inventoryIndexAt(mouseX, mouseY);
-			if (index >= 0 && drag == null) {
-				ItemStack stack = menu.getSlot(index).getItem();
-				if (!stack.isEmpty())
-					graphics.renderTooltip(font, stack, mouseX, mouseY);
-			}
+		int index = inventoryIndexAt(panelX, panelY);
+		if (inventoryPick != null && index != inventoryPick.index()) {
+			graphics.pose().pushPose();
+			graphics.pose().translate(0, 0, 250);
+			graphics.renderItem(inventoryPick.stack(), panelX - 8, panelY - 8);
+			graphics.pose().popPose();
+		}
+		graphics.pose().popPose();
+		if (inventoryPick == null && index >= 0 && drag == null) {
+			ItemStack stack = menu.getSlot(index).getItem();
+			if (!stack.isEmpty())
+				graphics.renderTooltip(font, stack, mouseX, mouseY);
 		}
 	}
 
 	@Override
+	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+		renderBg(graphics, partialTick, mouseX, mouseY);
+	}
+
+	@Override
 	protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-		ScratchPanelArt.panel(graphics, new Rect(leftPos, topPos, imageWidth, imageHeight), TITLE_HEIGHT, toolbarArea);
+		ScratchPanelArt.background(graphics, leftPos, topPos, consoleMode == ConsoleMode.INVENTORY);
 		String heading = canvas.shorten(title.getString() + (draft.isDirty() ? " *" : ""), imageWidth - 2 * PANEL_PADDING);
 		graphics.drawString(font, heading, leftPos + (imageWidth - font.width(heading)) / 2,
 			topPos + (TITLE_HEIGHT - font.lineHeight) / 2, 0xff4b2d18, false);
-		int dividerX = run.getX() - 8;
-		graphics.fill(dividerX, toolbarArea.y() + 4, dividerX + 1, toolbarArea.bottom() - 4, 0xff92938e);
-		graphics.fill(dividerX + 1, toolbarArea.y() + 4, dividerX + 2, toolbarArea.bottom() - 4, 0xffe2e2e1);
 
 		drawPalette(graphics, mouseX, mouseY);
 		drawWorkspaceHeader(graphics);
@@ -546,10 +548,33 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	@Override
 	protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {}
 
+	@Override
+	public int getXSize() { return Math.round(imageWidth * panelScale); }
+
+	@Override
+	public int getYSize() { return Math.round(imageHeight * panelScale); }
+
+	private double panelCoordinate(double position, int origin) {
+		return origin + (position - origin) / panelScale;
+	}
+
+	private int screenCoordinate(int position, int origin) {
+		return origin + Math.round((position - origin) * panelScale);
+	}
+
+	private Rect screenBounds(Rect bounds) {
+		int x = screenCoordinate(bounds.x(), leftPos);
+		int y = screenCoordinate(bounds.y(), topPos);
+		return new Rect(x, y, screenCoordinate(bounds.right(), leftPos) - x, screenCoordinate(bounds.bottom(), topPos) - y);
+	}
+
+	private void scissor(GuiGraphics graphics, Rect area) {
+		Rect screen = screenBounds(area);
+		graphics.enableScissor(screen.x(), screen.y(), screen.right(), screen.bottom());
+	}
+
 	private void drawWorkspaceHeader(GuiGraphics graphics) {
-		ScratchPanelArt.rim(graphics, workspaceArea);
-		Rect header = new Rect(workspaceArea.x() + 2, workspaceArea.y() + 2, workspaceArea.width() - 4, workspaceHeaderHeight());
-		ScratchPanelArt.rail(graphics, header);
+		Rect header = new Rect(workspaceArea.x() + 2, workspaceArea.y() + 2, workspaceArea.width() - 4, WORKSPACE_HEADER_HEIGHT);
 		int blocks = draft.blockCount();
 		String count = blocks + "/" + ComputerProgram.MAX_BLOCKS;
 		int countColor = blocks >= ComputerProgram.MAX_BLOCKS ? 0xffff8983
@@ -563,15 +588,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private void drawLibrary(GuiGraphics graphics, int mouseX, int mouseY) {
-		if (libraryArea == null)
-			return;
 		Rect area = libraryArea;
-		ScratchPanelArt.rim(graphics, area);
-		ScratchPanelArt.fill(graphics, area.inflate(-2), 0xff454441);
 		int size = Math.min(36, area.height() - 6);
 		Rect slot = new Rect(area.x() + 4, area.y() + (area.height() - size) / 2, size, size);
-		ScratchPanelArt.recess(graphics, slot, 0xff312f2c, 0xff666059);
-		graphics.enableScissor(slot.x() + 1, slot.y() + 1, slot.right() - 1, slot.bottom() - 1);
+		scissor(graphics, slot.inflate(-1));
 		graphics.pose().pushPose();
 		graphics.pose().translate(slot.x() + 1, slot.y() + 1, 0);
 		float scale = (size - 2) / 16f;
@@ -593,9 +613,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private void drawPalette(GuiGraphics graphics, int mouseX, int mouseY) {
 		if (paletteArea.height() == 0)
 			return;
-		ScratchPanelArt.rim(graphics, paletteArea.inflate(2));
-		ScratchPanelArt.grain(graphics, paletteArea, Grain.PALETTE);
-		graphics.enableScissor(paletteArea.x(), paletteArea.y(), paletteArea.right(), paletteArea.bottom());
+		scissor(graphics, paletteArea);
 		for (PaletteEntry entry : paletteEntries) {
 			Rect row = paletteRow(entry);
 			if (row.intersects(paletteArea)) {
@@ -630,13 +648,12 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private void drawCanvas(GuiGraphics graphics, int mouseX, int mouseY) {
-		ScratchPanelArt.grain(graphics, canvasArea, Grain.CANVAS);
 		Snapshot snapshot = menu.snapshot();
 		boolean sameProgram = draftMatchesExecution();
 		int activeBlock = sameProgram && snapshot.status() == Status.RUNNING ? snapshot.activeBlockIndex() : -1;
 		int problemBlock = sameProgram && snapshot.diagnostic() != null ? snapshot.diagnostic().blockIndex() : -1;
 		ScratchCanvas.Layout layout = canvas.layout(draft, activeBlock, problemBlock);
-		graphics.enableScissor(canvasArea.x(), canvasArea.y(), canvasArea.right(), canvasArea.bottom());
+		scissor(graphics, canvasArea);
 		graphics.pose().pushPose();
 		graphics.pose().translate(canvasArea.x() + viewport.screenX(0), canvasArea.y() + viewport.screenY(0), 0);
 		float scale = (float) viewport.scale();
@@ -697,12 +714,6 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private void drawConsole(GuiGraphics graphics, int mouseX, int mouseY) {
-		ScratchPanelArt.rim(graphics, consoleArea);
-		ScratchPanelArt.fill(graphics, consoleArea.inflate(-2), 0xff4c4940);
-		ScratchPanelArt.rail(graphics, new Rect(consoleArea.x() + 2, consoleArea.y() + 2,
-			consoleArea.width() - 4, CONSOLE_BODY_OFFSET - 2));
-		ScratchPanelArt.recess(graphics, consoleBody, consoleMode == ConsoleMode.INVENTORY ? 0xff373630 : 0xff263229,
-			0xff6e7865);
 		Snapshot snapshot = menu.snapshot();
 
 		Component statusMessage;
@@ -793,7 +804,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private void drawInventory(GuiGraphics graphics, int mouseX, int mouseY) {
 		for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
 			Rect slot = inventorySlot(i);
-			ScratchPanelArt.recess(graphics, slot, slot.contains(mouseX, mouseY) ? 0xff74684f : 0xff4d4b42, 0xff8a8575);
+			if (slot.contains(mouseX, mouseY))
+				ScratchPanelArt.fill(graphics, slot.inflate(-1), 0xff74684f);
 			ItemStack stack = menu.getSlot(i).getItem();
 			if (!stack.isEmpty()) {
 				int inset = (slot.width() - 16) / 2;
@@ -806,7 +818,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private Rect inventorySlot(int index) {
 		boolean hotbar = index < INVENTORY_COLUMNS;
 		int row = hotbar ? 3 : index / INVENTORY_COLUMNS - 1;
-		int size = inventorySlotSize();
+		int size = INVENTORY_SLOT_SIZE;
 		int x = consoleBody.x() + (consoleBody.width() - INVENTORY_COLUMNS * size) / 2;
 		int y = consoleBody.y() + 3 + row * size + (hotbar ? 3 : 0);
 		return new Rect(x + (index % INVENTORY_COLUMNS) * size, y, size, size);
@@ -860,6 +872,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		mouseX = panelCoordinate(mouseX, leftPos);
+		mouseY = panelCoordinate(mouseY, topPos);
 		if (drag != null || inventoryPick != null || panButton != -1)
 			return true;
 		if (mouseX < leftPos || mouseX >= leftPos + imageWidth || mouseY < topPos || mouseY >= topPos + imageHeight)
@@ -931,6 +945,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+		mouseX = panelCoordinate(mouseX, leftPos);
+		mouseY = panelCoordinate(mouseY, topPos);
+		dx /= panelScale;
+		dy /= panelScale;
 		if (panButton == button) {
 			viewport.pan(dx, dy);
 			return true;
@@ -942,6 +960,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	@Override
 	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		mouseX = panelCoordinate(mouseX, leftPos);
+		mouseY = panelCoordinate(mouseY, topPos);
 		if (inventoryPick != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			InventoryPick pick = inventoryPick;
 			inventoryPick = null;
@@ -996,6 +1016,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontal, double vertical) {
+		mouseX = panelCoordinate(mouseX, leftPos);
+		mouseY = panelCoordinate(mouseY, topPos);
 		int direction = (int) Math.signum(vertical);
 		if (direction == 0)
 			return super.mouseScrolled(mouseX, mouseY, horizontal, vertical);
@@ -1037,10 +1059,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	public List<ItemDropTarget> itemDropTargets() {
 		return visibleItemTargets().stream().map(target -> {
-			Rect area = target.area();
+			Rect area = screenBounds(target.area());
 			return new ItemDropTarget(new Rect2i(area.x(), area.y(), area.width(), area.height()), stack -> {
 				// JEI keeps the original targets for the duration of a drag.
-				if (visibleItemTargets().contains(target))
+				if (screenBounds(target.area()).equals(area) && visibleItemTargets().contains(target))
 					setItem(target.spot(), target.name(), stack);
 			});
 		}).toList();

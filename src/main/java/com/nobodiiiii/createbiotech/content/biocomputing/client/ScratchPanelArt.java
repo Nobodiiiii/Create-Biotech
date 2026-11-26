@@ -15,28 +15,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 
 final class ScratchPanelArt {
-	private static final ResourceLocation TEXTURE = CreateBiotech.asResource("textures/gui/biocomputing/editor_widgets.png");
-	private static final int TEXTURE_WIDTH = 128;
-	private static final int TEXTURE_HEIGHT = 512;
-	private static final int TILE = 120;
+	private static final ResourceLocation WIDGETS = CreateBiotech.asResource("textures/gui/biocomputing/editor_widgets.png");
+	private static final ResourceLocation BACKGROUNDS = CreateBiotech.asResource("textures/gui/biocomputing/editor_backgrounds.png");
+	private static final int WIDGETS_WIDTH = 128;
+	private static final int WIDGETS_HEIGHT = 32;
+	static final int BACKGROUND_WIDTH = 486;
+	static final int BACKGROUND_HEIGHT = 302;
+	private static final int FRAME_WIDTH = BACKGROUND_WIDTH + 2;
+	private static final int FRAME_HEIGHT = BACKGROUND_HEIGHT + 2;
 	static final int SYMBOL_SIZE = 12;
 	static final int LABEL_COLOR = 0xfff2ecdf;
 
-	private static final Finish BRASS = new Finish(0xffe4b763, 0xfff6d487, 0xffb08a46, 0xff231a12);
-	private static final Finish STEEL = new Finish(0xffc6c6c6, 0xffeeefed, 0xff93938f, 0xff5d5e59);
 	private static final Finish BUTTON = new Finish(0xff878889, 0xffd5d6d4, 0xff525253, 0xff3b3b3b);
 	private static final Finish TAB = new Finish(0xff646465, 0xffa5a4a2, 0xff454344, 0xff201d1b);
 	private static final Finish SELECTED_TAB = new Finish(0xff72583a, 0xffd4ad67, 0xff48351f, 0xff271e17);
 	private static final Finish SAVE = new Finish(0xff537044, 0xffafb98a, 0xff364c30, 0xff30392a);
 	private static final Finish DISABLED = new Finish(0xff656461, 0xff8a8985, 0xff51514f, 0xff474642);
-
-	enum Grain {
-		CASE(0), PALETTE(120), CANVAS(240);
-
-		private final int v;
-
-		Grain(int v) { this.v = v; }
-	}
 
 	enum Symbol {
 		RUN(0, 0xffe4efcb), STOP(1, 0xffedcdc7), SAVE(2), COPY(3), PASTE(4),
@@ -56,8 +50,8 @@ final class ScratchPanelArt {
 			RenderSystem.enableBlend();
 			graphics.setColor(FastColor.ARGB32.red(tint) / 255f, FastColor.ARGB32.green(tint) / 255f,
 				FastColor.ARGB32.blue(tint) / 255f, 1);
-			graphics.blit(TEXTURE, x, y, index % 8 * 16, 368 + index / 8 * 16,
-				SYMBOL_SIZE, SYMBOL_SIZE, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+			graphics.blit(WIDGETS, x, y, index % 8 * 16, index / 8 * 16,
+				SYMBOL_SIZE, SYMBOL_SIZE, WIDGETS_WIDTH, WIDGETS_HEIGHT);
 			graphics.setColor(1, 1, 1, 1);
 			RenderSystem.disableBlend();
 		}
@@ -65,41 +59,18 @@ final class ScratchPanelArt {
 
 	private ScratchPanelArt() {}
 
-	static void panel(GuiGraphics graphics, Rect bounds, int titleHeight, Rect toolbar) {
-		graphics.fill(bounds.x() + 2, bounds.y() + 3, bounds.right() + 2, bounds.bottom() + 2, 0x900f0d0b);
-		fill(graphics, bounds, 0xff211a13);
-		fill(graphics, bounds.inflate(-1), 0xff796347);
-		grain(graphics, bounds.inflate(-2), Grain.CASE);
-		bevel(graphics, new Rect(bounds.x(), bounds.y(), bounds.width(), titleHeight), BRASS);
-		bevel(graphics, toolbar, STEEL);
-	}
-
-	static void grain(GuiGraphics graphics, Rect area, Grain grain) {
-		for (int y = 0; y < area.height(); y += TILE) {
-			int height = Math.min(TILE, area.height() - y);
-			for (int x = 0; x < area.width(); x += TILE) {
-				int width = Math.min(TILE, area.width() - x);
-				graphics.blit(TEXTURE, area.x() + x, area.y() + y, 0, grain.v, width, height, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-			}
-		}
-	}
-
-	static void rim(GuiGraphics graphics, Rect area) {
-		fill(graphics, area, 0xff796347);
-		graphics.fill(area.x(), area.y(), area.right() - 1, area.bottom() - 1, 0xff201a15);
-		fill(graphics, area.inflate(-1), 0xff50443a);
+	static void background(GuiGraphics graphics, int x, int y, boolean inventory) {
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		graphics.blit(BACKGROUNDS, x, y, 0, inventory ? FRAME_HEIGHT : 0, FRAME_WIDTH, FRAME_HEIGHT,
+			FRAME_WIDTH, 2 * FRAME_HEIGHT);
+		RenderSystem.disableBlend();
 	}
 
 	static void recess(GuiGraphics graphics, Rect area, int color, int lip) {
 		fill(graphics, area, lip);
 		graphics.fill(area.x(), area.y(), area.right() - 1, area.bottom() - 1, 0xff25241e);
 		fill(graphics, area.inflate(-1), color);
-	}
-
-	static void rail(GuiGraphics graphics, Rect area) {
-		fill(graphics, area, 0xff555450);
-		graphics.fill(area.x(), area.y(), area.right(), area.y() + 1, 0xff76726b);
-		graphics.fill(area.x(), area.bottom() - 1, area.right(), area.bottom(), 0xff232220);
 	}
 
 	static void scrollBar(GuiGraphics graphics, int x, int y, int visible, int total, int scroll) {
