@@ -394,7 +394,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	@Override
-	protected boolean shouldDespawnInPeaceful() { return wildSlimeSize() > 0 || super.shouldDespawnInPeaceful(); }
+	public boolean removeWhenFarAway(double distanceToClosestPlayerSquared) { return false; }
 
 	@Override
 	public MobCategory getClassification(boolean forSpawnCount) {

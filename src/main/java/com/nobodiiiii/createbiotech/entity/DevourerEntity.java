@@ -60,6 +60,16 @@ public class DevourerEntity extends Slime {
 	public static double maxHealthForSize(int size) { return 2.0d * size * size; }
 
 	@Override
+	public boolean removeWhenFarAway(double distanceToClosestPlayerSquared) {
+		return false;
+	}
+
+	@Override
+	protected boolean shouldDespawnInPeaceful() {
+		return false;
+	}
+
+	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		super.defineSynchedData(builder);
 		builder.define(DEVOURED_PLAYER, Optional.empty());
