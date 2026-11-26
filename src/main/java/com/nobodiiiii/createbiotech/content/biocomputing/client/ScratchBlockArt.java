@@ -22,6 +22,15 @@ final class ScratchBlockArt {
 	private static final int TEXTURE_WIDTH = 512;
 	private static final int TEXTURE_HEIGHT = 256;
 	private static final int OUTLINE_V = 128;
+	static final int COMMAND_WIDTH = 64;
+	static final int MIN_VALUE_WIDTH = 16;
+	static final int TAB_HEIGHT = 4;
+	static final int RAIL_WIDTH = 16;
+	private static final int COMMAND_SLICE_X = 61;
+	private static final int COMMAND_SLICE_Y = 15;
+	private static final int VALUE_SLICE_X = 15;
+	private static final int VALUE_SLICE_Y = 7;
+	private static final int UNSLICED = -1;
 
 	enum Outline {
 		NONE(0), ACTIVE(0xffc9ab74), PROBLEM(0xffeb8f80), MISMATCH(0xffffc084);
@@ -34,38 +43,40 @@ final class ScratchBlockArt {
 	}
 
 	enum Region {
-		HAT(0, 0, 64, 26, 50, 5, 9, 8, 4),
-		STACK(72, 0, 64, 26, 26, 5, 6, 7, 4),
-		MOUTH(144, 0, 64, 26, 42, 5, 6, 7, 4),
-		FOOT(216, 0, 64, 18, 42, 5, 6, 7, 4),
-		CAP(288, 0, 64, 22, 26, 5, 6, 4, 0),
-		MIDDLE(360, 0, 64, 20, 42, 5, 8, 7, 4),
-		RAIL(432, 0, 16, 15, 3, 3, 0, 0, 0),
+		HAT(0, 24, COMMAND_SLICE_Y, TAB_HEIGHT),
+		STACK(80, 24, COMMAND_SLICE_Y, TAB_HEIGHT),
+		MOUTH(160, 24, COMMAND_SLICE_Y, TAB_HEIGHT),
+		FOOT(240, 16, UNSLICED, TAB_HEIGHT),
+		CAP(320, 20, COMMAND_SLICE_Y, 0),
+		MIDDLE(400, 24, COMMAND_SLICE_Y, TAB_HEIGHT),
+		RAIL(480, 0, RAIL_WIDTH, 1, UNSLICED, UNSLICED, 0),
 
-		ANY(0, 20, 4, 4, 4, 4),
-		NUMBER(40, 16, 3, 3, 3, 3),
-		TEXT(80, 16, 2, 8, 7, 2),
-		BOOLEAN(120, 16, 11, 11, 7, 7),
-		ITEM(160, 16, 5, 5, 5, 5),
-		LIST(200, 20, 5, 5, 4, 4),
-		MAP(240, 20, 5, 5, 5, 5);
+		ANY(0, 20),
+		NUMBER(48, 16),
+		TEXT(96, 16),
+		BOOLEAN(144, 16),
+		ITEM(192, 16),
+		LIST(240, 20),
+		MAP(288, 20);
 
-		private final int[] u, v;
-		private final int left, right, top, bottom, tab;
+		private final Axis x, y;
+		private final int tab;
 
-		Region(int u, int height, int left, int right, int top, int bottom) {
-			this(u, 40, 32, height, left, right, top, bottom, 0);
+		Region(int u, int height) {
+			this(u, 48, 32, height, VALUE_SLICE_X, VALUE_SLICE_Y, 0);
 		}
 
-		Region(int u, int v, int width, int height, int left, int right, int top, int bottom, int tab) {
-			this.u = cuts(u, width, left, right);
-			this.v = cuts(v, height, top, bottom);
-			this.left = left;
-			this.right = right;
-			this.top = top;
-			this.bottom = bottom;
+		Region(int u, int height, int sliceY, int tab) {
+			this(u, 0, COMMAND_WIDTH, height, COMMAND_SLICE_X, sliceY, tab);
+		}
+
+		Region(int u, int v, int width, int height, int sliceX, int sliceY, int tab) {
+			this.x = new Axis(u, width, sliceX);
+			this.y = new Axis(v, height, sliceY);
 			this.tab = tab;
 		}
+
+		int width() { return x.size(); }
 	}
 
 	private ScratchBlockArt() {}
@@ -83,12 +94,11 @@ final class ScratchBlockArt {
 	}
 
 	static Rect paintedBounds(Rect box, Region region) {
-		int overlap = region == Region.MIDDLE ? 2 : 0;
-		return new Rect(box.x() - 1, box.y() - 1 - overlap, box.width() + 2, box.height() + region.tab + 2 + overlap);
+		return region.tab == 0 ? box : new Rect(box.x(), box.y(), box.width(), box.height() + region.tab);
 	}
 
-	static void draw(GuiGraphics graphics, Rect box, Category category, Region region, Outline outline) {
-		drawTinted(graphics, paintedBounds(box, region), region, tint(category), outline.tint);
+	static void draw(GuiGraphics graphics, Rect bounds, Category category, Region region, Outline outline) {
+		drawTinted(graphics, bounds, region, tint(category), outline.tint);
 	}
 
 	static void drawValue(GuiGraphics graphics, Rect bounds, ScratchValueShape shape, int tint, int outline) {
@@ -96,13 +106,13 @@ final class ScratchBlockArt {
 	}
 
 	private static void drawTinted(GuiGraphics graphics, Rect bounds, Region region, int tint, int outline) {
-		int[] x = cuts(bounds.x(), bounds.width(), region.left, region.right);
-		int[] y = cuts(bounds.y(), bounds.height(), region.top, region.bottom);
+		Slice[] columns = region.x.slices(bounds.x(), bounds.width());
+		Slice[] rows = region.y.slices(bounds.y(), bounds.height());
 		Matrix4f pose = graphics.pose().last().pose();
 		BufferBuilder buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-		addSlices(buffer, pose, region, x, y, 0, tint);
+		addSlices(buffer, pose, columns, rows, 0, tint);
 		if (outline != 0)
-			addSlices(buffer, pose, region, x, y, OUTLINE_V, outline);
+			addSlices(buffer, pose, columns, rows, OUTLINE_V, outline);
 		RenderSystem.setShaderTexture(0, TEXTURE);
 		RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
 		RenderSystem.enableBlend();
@@ -110,33 +120,40 @@ final class ScratchBlockArt {
 		RenderSystem.disableBlend();
 	}
 
-	private static int[] cuts(int origin, int length, int first, int last) {
-		int caps = first + last;
-		int available = Math.max(0, length - 1);
-		if (caps > available) {
-			first = first * available / caps;
-			last = last * available / caps;
+	private record Axis(int start, int size, int stretch) {
+		Slice[] slices(int origin, int length) {
+			if (stretch == UNSLICED || size == length)
+				return new Slice[] {new Slice(origin, origin + length, start, start + size)};
+
+			// Trim identical texels on both sides of the stretch strip to preserve the edges of small values.
+			int trim = Math.max(0, size - length);
+			int trimLeading = trim / 2;
+			int trimTrailing = trim - trimLeading;
+			int leading = stretch - trimLeading;
+			int trailing = size - stretch - 1 - trimTrailing;
+			int centerStart = origin + leading;
+			int centerEnd = origin + length - trailing;
+			return new Slice[] {
+				new Slice(origin, centerStart, start, start + leading),
+				new Slice(centerStart, centerEnd, start + stretch, start + stretch + 1),
+				new Slice(centerEnd, origin + length, start + size - trailing, start + size)
+			};
 		}
-		return new int[] {origin, origin + first, origin + length - last, origin + length};
 	}
 
-	private static void addSlices(BufferBuilder buffer, Matrix4f pose, Region region, int[] x, int[] y, int offsetV, int tint) {
-		for (int row = 0; row < 3; row++) {
-			if (y[row + 1] <= y[row])
-				continue;
-			float v0 = (region.v[row] + offsetV) / (float) TEXTURE_HEIGHT;
-			float v1 = (region.v[row + 1] + offsetV) / (float) TEXTURE_HEIGHT;
-			for (int column = 0; column < 3; column++) {
-				int left = x[column];
-				int right = x[column + 1];
-				if (right <= left)
-					continue;
-				float u0 = region.u[column] / (float) TEXTURE_WIDTH;
-				float u1 = region.u[column + 1] / (float) TEXTURE_WIDTH;
-				buffer.addVertex(pose, left, y[row], 0).setUv(u0, v0).setColor(tint);
-				buffer.addVertex(pose, left, y[row + 1], 0).setUv(u0, v1).setColor(tint);
-				buffer.addVertex(pose, right, y[row + 1], 0).setUv(u1, v1).setColor(tint);
-				buffer.addVertex(pose, right, y[row], 0).setUv(u1, v0).setColor(tint);
+	private record Slice(int start, int end, int textureStart, int textureEnd) {}
+
+	private static void addSlices(BufferBuilder buffer, Matrix4f pose, Slice[] columns, Slice[] rows, int offsetV, int tint) {
+		for (Slice row : rows) {
+			float v0 = (row.textureStart + offsetV) / (float) TEXTURE_HEIGHT;
+			float v1 = (row.textureEnd + offsetV) / (float) TEXTURE_HEIGHT;
+			for (Slice column : columns) {
+				float u0 = column.textureStart / (float) TEXTURE_WIDTH;
+				float u1 = column.textureEnd / (float) TEXTURE_WIDTH;
+				buffer.addVertex(pose, column.start, row.start, 0).setUv(u0, v0).setColor(tint);
+				buffer.addVertex(pose, column.start, row.end, 0).setUv(u0, v1).setColor(tint);
+				buffer.addVertex(pose, column.end, row.end, 0).setUv(u1, v1).setColor(tint);
+				buffer.addVertex(pose, column.end, row.start, 0).setUv(u1, v0).setColor(tint);
 			}
 		}
 	}

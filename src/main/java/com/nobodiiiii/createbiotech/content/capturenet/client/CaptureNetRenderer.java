@@ -40,6 +40,7 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.event.RegisterNamedRenderTypesEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
@@ -86,6 +87,10 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 
 	public CaptureNetRenderer() {
 		super(null, null);
+	}
+
+	public static void registerRenderTypes(RegisterNamedRenderTypesEvent event) {
+		event.register(CreateBiotech.asResource("capture_net_mesh"), RenderType.cutout(), NET_RENDER_TYPE);
 	}
 
 	public static void registerShaders(RegisterShadersEvent event) throws IOException {

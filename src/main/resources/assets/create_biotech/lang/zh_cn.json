@@ -200,7 +200,7 @@
   "create_biotech.biocomputing.scratch.data.number": "数字",
   "create_biotech.biocomputing.scratch.data.text": "文本",
   "create_biotech.biocomputing.scratch.data.boolean": "布尔值",
-  "create_biotech.biocomputing.scratch.data.item": "物品 ID",
+  "create_biotech.biocomputing.scratch.data.item": "物品",
   "create_biotech.biocomputing.scratch.fixed_name_help": "拖入文本、数字、布尔值或物品，也可单击空槽输入文本。",
   "create_biotech.biocomputing.scratch.add_list_entry": "添加一项",
   "create_biotech.biocomputing.scratch.remove_list_entry": "移除此项",

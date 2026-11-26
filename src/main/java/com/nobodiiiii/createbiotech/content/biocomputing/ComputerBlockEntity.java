@@ -20,23 +20,25 @@ import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBlockItem;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlockEntity;
+import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class ComputerBlockEntity extends BlockEntity {
+public final class ComputerBlockEntity extends SyncedBlockEntity {
 	private static final int DISPLAY_NOTIFY_COOLDOWN = 5;
 	private static final int DISPLAY_RETRY_INTERVAL = 20;
 
@@ -50,6 +52,8 @@ public final class ComputerBlockEntity extends BlockEntity {
 	private static final String KEY_WIRELESS_TRANSMITTERS = "WirelessTransmitters";
 	private static final String KEY_LOGISTICS = "Logistics";
 	private static final String KEY_VILLAGER = "VillagerBox";
+	private static final String KEY_VILLAGER_DATA = "VillagerData";
+	private static final String KEY_VILLAGER_APPEARANCE = "VillagerAppearance";
 	private static final String KEY_DISPLAY_PENDING = "DisplayPending";
 
 	private ComputerProgram program = ComputerProgram.EMPTY;
@@ -61,6 +65,8 @@ public final class ComputerBlockEntity extends BlockEntity {
 	private final ComputerLogistics logistics = new ComputerLogistics();
 	private ItemStack villagerBox = ItemStack.EMPTY;
 	private ComputerLibrary villagerLibrary = ComputerLibrary.CORE;
+	@Nullable
+	private VillagerAppearance villagerAppearance;
 	private final String[] inputSlots = createEmptySlots();
 	private final List<Component> outputLines = new ArrayList<>();
 	private boolean pendingAutoStart;
@@ -203,6 +209,11 @@ public final class ComputerBlockEntity extends BlockEntity {
 		return !villagerBox.isEmpty();
 	}
 
+	@Nullable
+	public VillagerAppearance getVillagerAppearance() {
+		return villagerAppearance;
+	}
+
 	void installVillager(Player player, ItemStack stack) {
 		if (hasVillagerBox()) {
 			showInteractionMessage(player, "villager_occupied");
@@ -212,6 +223,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 			return;
 		stack.shrink(1);
 		markIoChanged();
+		sendData();
 		player.displayClientMessage(Component.translatable("create_biotech.biocomputing.villager_installed",
 			Component.translatable("create_biotech.biocomputing.scratch.library." + villagerLibrary.key())), true);
 	}
@@ -220,6 +232,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		ItemStack box = takeVillagerBox();
 		stopProgram();
 		markIoChanged();
+		sendData();
 		return box;
 	}
 
@@ -237,7 +250,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		if (villager == null)
 			return false;
 		villagerBox = stack.copyWithCount(1);
-		villagerLibrary = ComputerLibrary.forProfession(villager.getCompound("VillagerData").getString("profession"));
+		villagerLibrary = ComputerLibrary.forProfession(villager.getCompound(KEY_VILLAGER_DATA).getString("profession"));
 		return true;
 	}
 
@@ -431,6 +444,30 @@ public final class ComputerBlockEntity extends BlockEntity {
 	}
 
 	@Override
+	public CompoundTag writeClient(CompoundTag tag, HolderLookup.Provider registries) {
+		CompoundTag villager = CapturedEntityBoxHelper.getCapturedEntityData(villagerBox, EntityType.VILLAGER);
+		if (villager != null) {
+			CompoundTag data = villager.getCompound(KEY_VILLAGER_DATA);
+			CompoundTag appearance = new CompoundTag();
+			appearance.putString("type", data.getString("type"));
+			appearance.putString("profession", data.getString("profession"));
+			appearance.putInt("level", data.getInt("level"));
+			appearance.putBoolean("baby", villager.getInt("Age") < 0);
+			tag.put(KEY_VILLAGER_APPEARANCE, appearance);
+		}
+		return tag;
+	}
+
+	@Override
+	public void readClient(CompoundTag tag, HolderLookup.Provider registries) {
+		CompoundTag appearance = tag.getCompound(KEY_VILLAGER_APPEARANCE);
+		villagerAppearance = appearance.isEmpty() ? null : VillagerData.CODEC.parse(NbtOps.INSTANCE, appearance)
+			.result()
+			.map(data -> new VillagerAppearance(data, appearance.getBoolean("baby")))
+			.orElse(null);
+	}
+
+	@Override
 	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.saveAdditional(tag, registries);
 		tag.put(KEY_PROGRAM, ComputerProgramNbt.write(program));
@@ -504,4 +541,6 @@ public final class ComputerBlockEntity extends BlockEntity {
 		nextDisplayRetry = 0;
 		ioVersion++;
 	}
+
+	public record VillagerAppearance(VillagerData data, boolean baby) {}
 }

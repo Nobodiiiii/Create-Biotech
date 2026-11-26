@@ -449,7 +449,7 @@ public final class ComputerRuntime {
 
 	private ComputerValue value(Block block, int index, ComputerIO io) {
 		return switch (block.inputs().get(index)) {
-			case Literal literal -> new Scalar(literal.text(), literal.type());
+			case Literal literal -> new Scalar(literal.evaluatedText(), literal.type());
 			case Block reporter -> evaluate(reporter, io);
 			case EmptyInput ignored -> throw new IllegalStateException("Unfilled computer input in " + block.op());
 		};

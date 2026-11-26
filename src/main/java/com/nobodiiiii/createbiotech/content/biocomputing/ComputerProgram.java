@@ -18,6 +18,7 @@ public record ComputerProgram(List<Block> commands) {
 	public static final int MAX_LITERAL_LENGTH = 48;
 	public static final int MAX_COLLECTION_ROWS = 8;
 	private static final String EXAMPLE_ITEM = "minecraft:iron_ingot";
+	private static final String DEFAULT_NUMBER = "0";
 	public static final ComputerProgram EMPTY = new ComputerProgram(List.of());
 
 	public ComputerProgram {
@@ -98,6 +99,11 @@ public record ComputerProgram(List<Block> commands) {
 			if (text == null || type == null || text.length() > type.maxLength() || !type.isValid(text))
 				throw new IllegalArgumentException("Computer literal is invalid or too long");
 		}
+
+		String evaluatedText() {
+			// A blank numeric preset stays distinguishable from an explicitly entered zero.
+			return type == DataType.NUMBER && text.isEmpty() ? DEFAULT_NUMBER : text;
+		}
 	}
 
 	public record Block(Op op, List<Input> inputs, List<List<Block>> bodies) implements Input {
@@ -152,7 +158,7 @@ public record ComputerProgram(List<Block> commands) {
 	public enum Shape { COMMAND, REPORTER, BOOLEAN }
 
 	public enum DataType {
-		NUMBER("0"), TEXT(""), BOOLEAN("false"), ITEM(EXAMPLE_ITEM);
+		NUMBER(""), TEXT(""), BOOLEAN("false"), ITEM(EXAMPLE_ITEM);
 
 		private final String initial;
 		private final String key;
@@ -171,7 +177,7 @@ public record ComputerProgram(List<Block> commands) {
 
 		public boolean isValid(String text) {
 			return switch (this) {
-				case NUMBER -> isNumber(text);
+				case NUMBER -> text.isEmpty() || isNumber(text);
 				case BOOLEAN -> text.equals("true") || text.equals("false");
 				case TEXT, ITEM -> true;
 			};
@@ -411,7 +417,9 @@ public record ComputerProgram(List<Block> commands) {
 		}
 
 		private static Slot value(String initial) {
-			return new Slot(Socket.VALUE, initial, DataType.isNumber(initial) ? DataType.NUMBER : DataType.TEXT);
+		DataType type = DataType.isNumber(initial) ? DataType.NUMBER : DataType.TEXT;
+		String defaultText = DEFAULT_NUMBER.equals(initial) ? DataType.NUMBER.initial() : initial;
+		return new Slot(Socket.VALUE, defaultText, type);
 		}
 		private static Slot item() { return new Slot(Socket.VALUE, EXAMPLE_ITEM, DataType.ITEM); }
 		private static Slot condition() { return new Slot(Socket.CONDITION, "false", DataType.BOOLEAN); }

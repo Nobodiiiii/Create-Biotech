@@ -272,7 +272,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		int y = PALETTE_PADDING;
 		if (category == Category.DATA) {
 			for (DataType type : DataType.values()) {
-				PaletteEntry entry = paletteEntry(new Datum(type, type.initial()), text("data." + type.key()), true, y);
+				PaletteEntry entry = paletteEntry(new Datum(type, type.initial()), text("data." + type.key()), type == DataType.BOOLEAN, y);
 				entries.add(entry);
 				y += entry.height();
 			}
@@ -291,7 +291,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private PaletteEntry paletteEntry(Element element, Component name, boolean showName, int y) {
-		Preview preview = canvas.preview(element);
+		String displayLabel = element instanceof Datum datum && datum.type != DataType.BOOLEAN ? name.getString() : null;
+		Preview preview = canvas.preview(element, displayLabel);
 		int width = paletteArea.width() - PALETTE_PADDING - PALETTE_SCROLLBAR_GUTTER - 2;
 		float scale = Math.min(1, width / (float) preview.bounds().width());
 		int previewHeight = (int) Math.ceil(preview.bounds().height() * scale);
@@ -898,7 +899,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && paletteArea.contains(mouseX, mouseY)) {
 			for (PaletteEntry entry : paletteEntries) {
 				if (paletteRow(entry).contains(mouseX, mouseY)) {
-					beginDrag(ScratchDraft.element(entry.template()), null, mouseX, mouseY);
+					drag = new Drag(ScratchDraft.element(entry.template()), null, entry.preview(), mouseX, mouseY);
 					break;
 				}
 			}

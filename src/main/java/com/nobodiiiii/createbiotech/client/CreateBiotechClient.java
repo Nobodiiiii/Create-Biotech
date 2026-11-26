@@ -89,6 +89,7 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterNamedRenderTypesEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
@@ -304,6 +305,11 @@ public class CreateBiotechClient {
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
 				(state, face) -> face.getAxis() != state.getValue(BlockStateProperties.AXIS));
 		});
+	}
+
+	@SubscribeEvent
+	public static void registerRenderTypes(RegisterNamedRenderTypesEvent event) {
+		CaptureNetRenderer.registerRenderTypes(event);
 	}
 
 	@SubscribeEvent

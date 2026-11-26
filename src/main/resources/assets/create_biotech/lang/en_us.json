@@ -200,7 +200,7 @@
   "create_biotech.biocomputing.scratch.data.number": "Number",
   "create_biotech.biocomputing.scratch.data.text": "Text",
   "create_biotech.biocomputing.scratch.data.boolean": "Boolean",
-  "create_biotech.biocomputing.scratch.data.item": "Item ID",
+  "create_biotech.biocomputing.scratch.data.item": "Item",
   "create_biotech.biocomputing.scratch.fixed_name_help": "Drop literal text, a number, a boolean, or an item here. Click the empty socket to type text.",
   "create_biotech.biocomputing.scratch.add_list_entry": "Add an entry",
   "create_biotech.biocomputing.scratch.remove_list_entry": "Remove this entry",
