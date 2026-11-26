@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.0.1
+
+### 中文
+
+### 新增功能
+
+- **吞噬者**有概率代替自然生成的史莱姆。它会跳起压住猎物，吞噬后长出可拆装的拟态组织并继承符合条件的供体特性。体型足够大时也能吞入玩家，玩家可从内部攻击挣脱。
+- **吞噬特性**可由仿生生物继承，需要装配吞噬者的内层和外层组织，并让外层接地。
+- **动力捕捉网**可用空捕捉网右击动力臂改装，配合正下方的生物打包机自动捕捉和装箱。网兜可以更换，空手潜行右击可取回网兜并还原动力臂。
+- **装有生物的纸箱**可通过普通打包机接入 Create 物流网络，支持库存链接、工厂仪表和按地址发货。仓库界面使用生物模型展示纸箱，并可展开同种生物的库存。
+- **手术盒与创造手术盒**可放置在世界中。附近玩家可右击或按住快捷键打开轮盘，选取或收起工具。
+
+### 改进
+
+- **生物打包机**将捕捉成品送回相连库存。它可直接接收装有生物的纸箱，也可用红石信号从库存取箱，再从机器上方释放生物。空纸箱会送回库存，库存无法接收时会掉在机器旁。
+- **仿生移动与战斗**按身体体积换算等效史莱姆尺寸，用于计算跳动速度和碰撞伤害。纸箱的属性面板采用相同的基础数值计算。
+- **供体体质与力量**改为先折算成等效体积，再计算生命上限和挥臂伤害。史莱姆、岩浆怪和吞噬者的供体体质随实际尺寸计算。
+- **资源**精简方块模型状态，按设备整理模型、部件和贴图路径。覆盖旧路径的资源包可查阅[路径对应表](docs/resource-layout.zh-CN.md)。
+
+### 修复
+
+- 补齐手术台思索遗漏的英文字幕，并按中文修正关节、装箱和特性提示。
+- 补齐史莱姆培养皿、恶魂驾驶台和恶魂热气球装配站的掉落。
+- 修复装箱时因选中的部件不同导致成品朝向不一致的问题。
+- 统一捕捉网、纸箱和动态结构的致死装箱判定，以扣除吸收生命值后的伤害为准。
+- 修正潜影打包机侧面输出选择框的位置。
+- 修复智能强力胶的耐久附魔兼容性。
+
+### English
+
+### New Features
+
+- Added Devourers, which can appear in place of naturally spawning slimes. They leap onto prey and grow detachable mimic tissue after devouring it, inheriting eligible donor traits. Large Devourers can swallow players, who can fight their way out from inside.
+- Added a heritable Devour trait for bionic creatures. It requires both inner and outer Devourer tissue, with the outer layer touching the ground.
+- Added Powered Capture Nets. Right-click a Mechanical Arm with an empty Capture Net to convert it, then pair it with a Bio Packager directly below to catch and box creatures automatically. Fitted nets can be swapped, or retrieved by sneak-right-clicking with an empty hand to restore the arm.
+- Integrated captured-creature boxes into Create's logistics network through standard Packagers, with support for Stock Links, Factory Gauges, and addressed deliveries. The stock-keeping screen displays creature models and lets players expand groups by creature type.
+- Made Surgical Kits and Creative Surgical Kits placeable. Nearby players can right-click the kit or hold the hotkey to open its radial menu and select or stow tools.
+
+### Improvements
+
+- Bio Packagers deposit boxed creatures into attached inventories. They can accept a filled box directly or retrieve one from the inventory with a redstone signal, then release the creature above the machine. Empty boxes return to the inventory or drop by the machine if there is no space.
+- Bionic hopping speed and contact damage now scale with the body's equivalent slime size, calculated from its volume. Captured-creature tooltips use the same base stat calculations.
+- Donor health and strength modifiers now contribute equivalent volume to the maximum-health and arm-damage calculations. Health modifiers for Slimes, Magma Cubes, and Devourers scale with their actual size.
+- Simplified block model states and organized models, parts, and textures by device. For pack overrides, see the [resource path changes](docs/resource-layout.zh-CN.md).
+
+### Fixes
+
+- Restored missing English captions in the Surgical Table Ponder and corrected the hints for joints, boxed creatures, and traits to match the Chinese text.
+- Restored drops for the Petri Dish, Ghast Helm, and Ghast Hot Air Balloon Assembly Station.
+- Fixed the packed body's orientation changing depending on which part of the assembly was selected for packing.
+- Made lethal-hit boxing with nets, boxes, and contraptions consistently account for damage blocked by absorption.
+- Corrected the position of the Shulker Packager's output selection box.
+- Fixed Smart Super Glue's compatibility with durability enchantments.
+
+---
+
 ## 2.0.0
 
 ### 中文
@@ -13,14 +69,13 @@
 
 ### 新增功能
 
-- **手术台思索**：新增放置供体、切分与重组、安装关节、特性介绍四章动态教程，替代原手术指南；JEI 特性查询入口改为手术台。
-- **绿图与绿图桌（开发中）**：以绿图替代史莱姆数据，可记录并重复释放拟态或仿生生物副本；绿图桌支持本地 `.nbt` 文件导入、导出，导入实体快照需要创造模式。
+- **手术台思索**新增放置供体、切分与重组、安装关节、特性介绍四章动态教程。JEI 特性查询入口改为手术台。
+- **绿图与绿图桌（开发中）**支持记录并重复释放拟态或仿生生物副本。绿图桌可导入、导出本地 `.nbt` 文件，导入实体快照需要创造模式。
 
 ### 改进
 
 - **仿生飞行**：没有有效腿部的飞行仿生生物会低空悬停并游荡，改善无腿身体的自主移动。
 - **仿生动画**：完善供体原生动画与组装关节的衔接，音爆动作按实际肩关节播放，持械位置随动作同步。
-- **资源**：精简方块模型状态，统一部件和贴图命名，补齐培养皿、恶魂舵和热气球装配站掉落。覆盖旧路径的资源包可查阅[路径对应表](docs/resource-layout.zh-CN.md)。
 - **依赖与分发**：Ponderer Lib 升级至 0.1.1；CurseForge 版本需单独安装该前置，Modrinth 版本内嵌该库。
 
 ### 修复
@@ -29,8 +84,6 @@
 - 修复不规则手术台将部件间空隙计入占用范围，导致放置或粘合时误报空间不足的问题。
 - 修复短粗或侧接肢体的肩、髋关节转轴定位错误的问题。
 - 修复回放导出时手术台部件渲染准备未刷新而导致的显示异常。
-
-- 补齐手术台思索遗漏的英文字幕，并按中文修正关节、装箱和特性提示。
 
 ### English
 
@@ -43,12 +96,11 @@ Highlights from the four beta releases:
 
 ### New Features
 
-- Added four animated Surgical Table tutorial chapters covering donor placement, dissection and recombination, joints, and traits, replacing the Surgery Guide. JEI trait lookup now starts from the Surgical Table.
-- Replaced Slime Data with Greenprints for recording and repeatedly spawning copies of mimics or bionic creatures. The Greenprint Table imports and exports local `.nbt` files; importing entity snapshots requires Creative mode. Both remain under development.
+- Added four animated Surgical Table tutorial chapters covering donor placement, dissection and recombination, joints, and traits. JEI trait lookup now starts from the Surgical Table.
+- Added Greenprints for recording and repeatedly spawning copies of mimics or bionic creatures. The Greenprint Table imports and exports local `.nbt` files. Importing entity snapshots requires Creative mode. Both remain under development.
 
 ### Improvements
 
-- Simplified block model states, grouped models and textures by device, and restored drops for the Petri Dish, Ghast Helm, and Ghast Hot Air Balloon Assembly Station. See the [resource path changes](docs/resource-layout.zh-CN.md) for pack overrides.
 - Added low-altitude hovering and wandering for flying bionic creatures without functional legs, improving autonomous movement for legless bodies.
 - Improved how donor animations follow assembled joints, with Sonic Boom arm motions using the installed shoulders and held items following the animated pose.
 - Updated Ponderer Lib to 0.1.1. CurseForge builds require a separate installation of the library; Modrinth builds bundle it.
@@ -59,8 +111,6 @@ Highlights from the four beta releases:
 - Fixed placement and glue previews on irregular Surgical Tables counting gaps between cubes as occupied space and incorrectly reporting insufficient room.
 - Fixed shoulder and hip pivot placement for compact or side-mounted limbs.
 - Fixed Surgical Table rendering during replay exports when render preparation was not refreshed.
-
-- Restored missing English captions in the Surgical Table Ponder and corrected the hints for joints, boxed creatures, and traits to match the Chinese text.
 
 ---
 
@@ -127,13 +177,13 @@ Highlights from the four beta releases:
 - **特性与属性扩展**：支持通过数据包、KubeJS 和 Java 扩展特性、部位、行为及基础数值公式。
 - **手术台调整**：扳手可平移、旋转单个体块或整个连通部件，并支持整体摆正；扳手和智能强力胶均可预览、确认或放弃调整。
 - **临时纸箱定向放置**：可从六个落地面朝向中选择部件的放置方向。
-- **统一关节**：以可切换类型的关节物品替代五种独立关节，通过轮盘选择颈、肩、肘、髋或膝关节。
-- **创造与调试工具**：创造手术盒加入附身入口和部件复制工具，新增记录与复现拟态生物的史莱姆数据，以及导出诊断报告的拟态生物调试棒。
+- **统一关节**可通过轮盘切换颈、肩、肘、髋或膝五种类型。
+- **创造手术盒**新增附身入口和部件复制工具。
 - **潜影传送站地址展示**：可通过工程师护目镜查看目标地址，并可将地址输出到显示链接。
 
 ### 改进
 
-- **手术台操作**：完善连接检查、失败原因提示与操作引导；剪刀可拆卸并回收关节，手术指南支持章节折叠。
+- **手术台操作**完善连接检查、失败原因提示与操作引导。剪刀可拆卸并回收关节。
 - **手术台性能**：减少模型、体积和装箱预览的重复计算，优化复杂身体的准备与同步。
 - **存档兼容**：精简手术台与仿生组装数据的重复存储，支持已发布版本存档的加载转换。
 - **生物机器渲染**：统一物品、JEI、世界与 Flywheel 中的模型表现，修复重复绘制、界面预览缺失及苦力怕特效异常。
@@ -153,13 +203,13 @@ Highlights from the four beta releases:
 - Added data-pack, KubeJS, and Java support for extending traits, body parts, behaviors, and base-stat formulas.
 - Added wrench translation, rotation, and straightening for individual cubes or connected parts, with preview, confirmation, and cancellation for wrench and Smart Super Glue edits.
 - Added temporary-box placement with six selectable grounding orientations.
-- Replaced the five separate joint offerings with a universal joint and a radial selector for neck, shoulder, elbow, hip, and knee types.
-- Added possession access and part copying to the Creative Surgical Kit, Slime Data for recording and recreating mimics, and a Mimic Debug Stick for exporting diagnostic reports.
+- Added a unified Joint item with a radial selector for neck, shoulder, elbow, hip, and knee types.
+- Added possession access and part copying to the Creative Surgical Kit.
 - Added Shulker Teleporter target-address readouts through Engineer's Goggles and Display Links.
 
 ### Improvements
 
-- Refined surgical connection checks, failure messages, and controls. Shears can remove and return joints, and guide chapters can be collapsed.
+- Refined surgical connection checks, failure messages, and controls. Shears can remove and return joints.
 - Reduced repeated model, volume, and packing-preview calculations, improving preparation and synchronization for complex bodies.
 - Reduced duplicate surgical table and assembly data while supporting conversion of saves from published versions on load.
 - Unified creature-machine models across inventory, JEI, world, and Flywheel rendering, fixing duplicate rendering, missing GUI previews, and creeper effect issues.
@@ -217,8 +267,8 @@ Highlights from the four beta releases:
 ### 新增功能
 
 - **手术台与手术盒**：可将拟态生物拆分为部件，使用剪刀、强力胶、蜂蜜瓶和对称之杖进行切割、粘合、组合与对称装配。
-- **仿生组装**：新增颈、肩、肘、髋、膝关节，可连接活动部件并组装能够移动、转头与攻击的仿生生物。
-- **手术指南与临时纸箱**：新增游戏内操作指南，支持临时装箱、搬运和放回手术部件。
+- **仿生组装**可用关节连接活动部件，组装能够移动、转头和攻击的仿生生物。
+- **临时纸箱**可用于装箱、搬运和放回手术部件。
 - **Q弹效果**：新增液态活体史莱姆瓶与 Q弹效果，加入弹跳及身体形变表现。
 - **皓蓝装饰与胃菇**：新增皓蓝桌面、脚手架、梯子、栏杆、门和青蛙胃菇。
 
@@ -232,8 +282,8 @@ Highlights from the four beta releases:
 ### New Features
 
 - Added the Surgical Table and Surgical Kit for cutting, gluing, grouping, and mirroring mimic parts with shears, Super Glue, Honey Bottles, and the Symmetry Wand.
-- Added neck, shoulder, elbow, hip, and knee joints for assembling articulated bionic creatures that can move, turn their heads, and attack.
-- Added an in-game Surgery Guide and temporary boxes for packing, moving, and replacing surgical parts.
+- Added joint-based assembly for bionic creatures that can move, turn their heads, and attack.
+- Added temporary boxes for packing, moving, and returning surgical parts to the table.
 - Added Liquid Living Slime Bottles and the Bouncing effect, with bouncing and body deformation.
 - Added Asurine Table Cloths, Scaffolding, Ladders, Bars, Doors, and Frog Stomach Fungus.
 
